@@ -1,0 +1,38 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+/app-debug.apk
+/app-release.apk
+
+# Android Studio Navigation editor temp files
+.navigation/
+
+# Android Studio CMake temp files
+CMakeLists.txt.user
+
+# Android Studio run configurations
+/.idea/runConfigurations/
+
+# Mac OS X
+*.DS_Store
+
+# Android APK / Bundles
+*.apk
+*.aab
+
+# Gradle
+.gradle/
+build/
+app/build/

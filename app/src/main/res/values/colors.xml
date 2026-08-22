@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#3B51B5</color>
+    <color name="primary_dark">#B2C5FF</color>
+    <color name="background_light">#FEF7FF</color>
+    <color name="background_dark">#121318</color>
+    <color name="background_oled">#000000</color>
+</resources>

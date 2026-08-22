@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Xyecoc Mail</string>
+    <string name="inbox">Входящие</string>
+    <string name="sent">Отправленные</string>
+    <string name="important">Важные</string>
+    <string name="drafts">Черновики</string>
+    <string name="spam">Спам</string>
+    <string name="trash">Корзина</string>
+    <string name="folders">Папки</string>
+    <string name="tags">Теги</string>
+    <string name="settings">Настройки</string>
+    <string name="support">Поддержка</string>
+    <string name="admin">Админ-панель</string>
+    <string name="compose">Написать</string>
+    <string name="search">Поиск по почте</string>
+</resources>
