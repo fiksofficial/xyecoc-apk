@@ -17,6 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import coil.imageLoader
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -182,6 +183,23 @@ fun ProfileTab(viewModel: SettingsViewModel, onLoggedOut: () -> Unit) {
         }
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 20.dp))
+
+        Button(
+            onClick = {
+                context.imageLoader.diskCache?.clear()
+                context.imageLoader.memoryCache?.clear()
+                android.widget.Toast.makeText(context, "Кеш очищен", android.widget.Toast.LENGTH_SHORT).show()
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+            modifier = Modifier.fillMaxWidth().height(48.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(Icons.Default.Delete, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Очистить кеш аватарок")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         Button(
             onClick = { viewModel.logout(onLoggedOut) },

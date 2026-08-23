@@ -104,7 +104,7 @@ fun ComposeScreen(
                         Icon(Icons.Default.Save, contentDescription = "Сохранить черновик")
                     }
                     IconButton(onClick = { filePickerLauncher.launch("*/*") }) {
-                        Icon(Icons.Default.Attachment, contentDescription = "Прикрепить файл")
+                        Icon(Icons.Default.Attachment, contentDescription = "Вложения")
                     }
 
 
