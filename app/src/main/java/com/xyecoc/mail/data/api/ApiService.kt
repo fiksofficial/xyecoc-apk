@@ -1,8 +1,5 @@
 package com.xyecoc.mail.data.api
 
-import android.util.Log
-import com.google.gson.Gson
-import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 import com.xyecoc.mail.data.model.ApiResponse
 import com.xyecoc.mail.data.model.RequestPayload
@@ -12,29 +9,19 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.logging.HttpLoggingInterceptor
-import java.util.concurrent.TimeUnit
 
 class ApiService(
     val baseUrl: String = "https://api.xyecoc.com",
     val cdnUrl: String = "https://cdn.xyecoc.com"
 ) {
-    private val gson = GsonBuilder().serializeNulls().create()
+    // Shared, process-wide client & serializer (see Network).
+    val client: OkHttpClient get() = Network.client
+    private val gson get() = Network.gson
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
-    val client = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(20, TimeUnit.SECONDS)
-        .writeTimeout(20, TimeUnit.SECONDS)
-        .addInterceptor(HttpLoggingInterceptor { message ->
-            Log.d("XyecocApi", message)
-        }.apply {
-            level = HttpLoggingInterceptor.Level.BODY
-        })
-        .build()
-
-    suspend fun <T> request(payload: RequestPayload, typeToken: TypeToken<ApiResponse<T>>): ApiResponse<T> =
-        withContext(Dispatchers.IO) {
+    suspend fun <T> request(payload: RequestPayload, typeToken: TypeToken<ApiResponse<T>>): ApiResponse<T> {
+        // Network I/O on Dispatchers.IO ...
+        val responseBody = withContext(Dispatchers.IO) {
             try {
                 val jsonBody = gson.toJson(payload)
                 val request = Request.Builder()
@@ -42,17 +29,27 @@ class ApiService(
                     .post(jsonBody.toRequestBody(jsonMediaType))
                     .build()
 
-                val response = client.newCall(request).execute()
-                val responseBody = response.body?.string() ?: ""
-
-                if (response.isSuccessful && responseBody.isNotBlank()) {
-                    gson.fromJson(responseBody, typeToken.type)
-                } else {
-                    ApiResponse(status = 0, message = "HTTP error: ${response.code}")
+                client.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) response.body?.string().orEmpty() else ""
                 }
             } catch (e: Exception) {
-                Log.e("XyecocApi", "Request failed: ${e.message}", e)
-                ApiResponse(status = 0, message = e.localizedMessage ?: "Network error")
+                ""
             }
         }
+
+        if (responseBody.isBlank()) {
+            return ApiResponse(status = 0, message = "Network error")
+        }
+
+        // ... CPU-bound JSON parsing on Dispatchers.Default so a large ApiResponse
+        // union never hogs an IO thread another request needs.
+        return withContext(Dispatchers.Default) {
+            try {
+                @Suppress("UNCHECKED_CAST")
+                gson.fromJson<ApiResponse<T>>(responseBody, typeToken.type)
+            } catch (e: Exception) {
+                ApiResponse(status = 0, message = e.localizedMessage ?: "Parse error")
+            }
+        }
+    }
 }

@@ -1,11 +1,8 @@
 package com.xyecoc.mail.data.api
 
 import android.util.Log
-import com.google.gson.Gson
-import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
 import com.xyecoc.mail.data.model.ApiResponse
-import com.xyecoc.mail.data.model.MailItem
 import com.xyecoc.mail.data.model.RequestPayload
 import io.socket.client.IO
 import io.socket.client.Socket
@@ -18,7 +15,7 @@ class SocketManager(
     private val socketUrl: String = "wss://api.xyecoc.com"
 ) {
     private var socket: Socket? = null
-    private val gson = Gson()
+    private val gson get() = Network.gson
 
     private val _mailUpdatesFlow = MutableSharedFlow<ApiResponse<Any>>(extraBufferCapacity = 64)
     val mailUpdatesFlow: SharedFlow<ApiResponse<Any>> = _mailUpdatesFlow.asSharedFlow()
@@ -74,9 +71,19 @@ class SocketManager(
         }
     }
 
+    fun isConnected(): Boolean = socket?.connected() == true
+
     fun disconnect() {
         socket?.disconnect()
         socket?.off()
         socket = null
+    }
+
+    companion object {
+        /**
+         * Single process-wide socket. Both the foreground service and the inbox
+         * observe this one connection instead of opening a socket per repository.
+         */
+        val shared: SocketManager by lazy { SocketManager() }
     }
 }

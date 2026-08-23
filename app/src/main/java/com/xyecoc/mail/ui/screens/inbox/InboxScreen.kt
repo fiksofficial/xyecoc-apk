@@ -27,7 +27,6 @@ import com.xyecoc.mail.XyecocApp
 import com.xyecoc.mail.ui.components.MailListItem
 import com.xyecoc.mail.ui.viewmodel.InboxViewModel
 import kotlinx.coroutines.launch
-import com.xyecoc.mail.data.model.MailItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -380,11 +379,15 @@ fun InboxScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(vertical = 4.dp)
                     ) {
-                        items(displayedMails, key = { it.id }) { mail ->
+                        items(
+                            items = displayedMails,
+                            key = { it.id },
+                            contentType = { "mail" }
+                        ) { mail ->
                             MailListItem(
                                 mail = mail,
                                 onClick = { onMailClick(mail.id) },
-                                onStarClick = { viewModel.toggleImportant(mail) },
+                                onStarClick = { viewModel.toggleImportant(mail.id) },
                                 onDeleteClick = { viewModel.deleteMail(mail.id) }
                             )
                             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))

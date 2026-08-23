@@ -36,3 +36,9 @@ CMakeLists.txt.user
 .gradle/
 build/
 app/build/
+
+# Signing — never commit keystores or credentials
+*.keystore
+*.jks
+keystore.properties
+signing.properties

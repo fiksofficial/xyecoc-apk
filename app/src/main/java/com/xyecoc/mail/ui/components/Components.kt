@@ -6,8 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Attachment
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
@@ -20,12 +18,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.xyecoc.mail.data.model.MailItem
-import com.xyecoc.mail.util.DateUtils
+import com.xyecoc.mail.ui.model.MailRow
+
+// Hoisted so the constant part of the avatar modifier isn't rebuilt every recomposition.
+private val AvatarModifier = Modifier.size(44.dp).clip(CircleShape)
 
 @Composable
 fun MailListItem(
-    mail: MailItem,
+    mail: MailRow,
     onClick: () -> Unit,
     onStarClick: () -> Unit,
     onDeleteClick: () -> Unit,
@@ -43,13 +43,9 @@ fun MailListItem(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val displayName = mail.getDisplayName()
-            val avatarChar = displayName.firstOrNull()?.uppercaseChar() ?: '?'
+            val avatarChar = mail.displayName.firstOrNull()?.uppercaseChar() ?: '?'
             Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
+                modifier = AvatarModifier.background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -69,7 +65,7 @@ fun MailListItem(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = displayName,
+                        text = mail.displayName,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = if (mail.read) FontWeight.Medium else FontWeight.Bold,
                         maxLines = 1,
@@ -77,7 +73,7 @@ fun MailListItem(
                         modifier = Modifier.weight(1f)
                     )
                     Text(
-                        text = DateUtils.formatDate(mail.createdAt),
+                        text = mail.formattedDate,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -86,14 +82,14 @@ fun MailListItem(
                 Spacer(modifier = Modifier.height(2.dp))
 
                 Text(
-                    text = mail.getDisplaySubject(),
+                    text = mail.displaySubject,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = if (mail.read) FontWeight.Normal else FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
 
-                if (mail.snippet.isNotBlank() && mail.subject.isNotBlank()) {
+                if (mail.showSnippet) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = mail.snippet,
@@ -104,21 +100,16 @@ fun MailListItem(
                     )
                 }
 
-                if (!mail.tagName.isNullOrBlank()) {
+                if (mail.tagName != null) {
                     Spacer(modifier = Modifier.height(4.dp))
-                    val tagColorParsed = try {
-                        val hex = mail.tagColor?.removePrefix("#") ?: "3B51B5"
-                        Color(android.graphics.Color.parseColor("#$hex"))
-                    } catch (e: Exception) {
-                        MaterialTheme.colorScheme.primary
-                    }
+                    val tagColor = mail.tagColorArgb?.let { Color(it) } ?: MaterialTheme.colorScheme.primary
                     Surface(
                         shape = RoundedCornerShape(4.dp),
-                        color = tagColorParsed.copy(alpha = 0.2f)
+                        color = tagColor.copy(alpha = 0.2f)
                     ) {
                         Text(
                             text = mail.tagName,
-                            color = tagColorParsed,
+                            color = tagColor,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)

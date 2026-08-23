@@ -17,7 +17,7 @@ import com.xyecoc.mail.data.repository.MailRepository
 import com.xyecoc.mail.util.NotificationHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.isActive
@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
 
 class MailForegroundService : Service() {
 
-    private val serviceJob = Job()
+    private val serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
     private lateinit var mailRepo: MailRepository
 
@@ -34,7 +34,12 @@ class MailForegroundService : Service() {
         mailRepo = MailRepository()
         createNotificationChannel()
         startForeground(ONGOING_NOTIFICATION_ID, createNotification())
-        startPolling()
+
+        // Realtime path: connect the shared socket and notify on pushed mail.
+        mailRepo.socketManager.connect(XyecocApp.instance.securePrefs.getToken())
+        observeSocket()
+        // Fallback only: poll with exponential backoff when the socket is down.
+        startFallbackPolling()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -53,25 +58,54 @@ class MailForegroundService : Service() {
         serviceJob.cancel()
     }
 
-    private fun startPolling() {
+    /** Notify on realtime pushes and persist them into the offline cache. */
+    private fun observeSocket() {
         serviceScope.launch {
-            while (isActive) {
+            mailRepo.mailUpdates.collect { update ->
                 try {
+                    val mails = update.mails ?: return@collect
                     val db = XyecocApp.instance.database
-                    val oldMails = db.mailDao().getMailsByFolder("inbox").firstOrNull() ?: emptyList()
-                    val oldIds = oldMails.map { it.id }.toSet()
-
-                    val response = mailRepo.fetchMails(folder = "inbox", page = 1)
-                    if (response.error == null && response.mails != null) {
-                        val newMails = response.mails.filter { it.id !in oldIds && !it.read }
-                        for (mail in newMails) {
-                            NotificationHelper.showNewMailNotification(applicationContext, mail)
-                        }
-                    }
+                    val knownIds = db.mailDao().getMailsByFolder("inbox").firstOrNull()
+                        .orEmpty().map { it.id }.toSet()
+                    mailRepo.applySocketUpdate(update)
+                    mails.asSequence()
+                        .filter { it.id !in knownIds && !it.read }
+                        .forEach { NotificationHelper.showNewMailNotification(applicationContext, it) }
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
-                delay(10000) // Poll every 10 seconds
+            }
+        }
+    }
+
+    /**
+     * Battery-conscious fallback: only fetch when the socket is NOT connected, and back off
+     * 15s -> 30s -> 60s so a persistent outage doesn't hammer the network or the battery.
+     */
+    private fun startFallbackPolling() {
+        serviceScope.launch {
+            var delayMs = 15_000L
+            while (isActive) {
+                if (!mailRepo.socketManager.isConnected()) {
+                    try {
+                        val db = XyecocApp.instance.database
+                        val oldIds = db.mailDao().getMailsByFolder("inbox").firstOrNull()
+                            .orEmpty().map { it.id }.toSet()
+
+                        val response = mailRepo.fetchMails(folder = "inbox", page = 1)
+                        if (response.error == null && response.mails != null) {
+                            response.mails
+                                .filter { it.id !in oldIds && !it.read }
+                                .forEach { NotificationHelper.showNewMailNotification(applicationContext, it) }
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                    delayMs = (delayMs * 2).coerceAtMost(60_000L)
+                } else {
+                    delayMs = 15_000L // socket healthy — stay idle
+                }
+                delay(delayMs)
             }
         }
     }

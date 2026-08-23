@@ -23,10 +23,15 @@ android {
     }
     signingConfigs {
         create("release") {
-            storeFile = file("release.keystore")
-            storePassword = "password"
-            keyAlias = "release"
-            keyPassword = "password"
+            // Credentials are read from environment variables (CI) or ~/.gradle/gradle.properties
+            // (local). Never hardcode them here. See gradle.properties for the property names.
+            fun secret(env: String, prop: String): String? =
+                System.getenv(env) ?: (project.findProperty(prop) as String?)
+
+            storeFile = file(secret("XYECOC_KEYSTORE_FILE", "xyecoc.keystoreFile") ?: "release.keystore")
+            storePassword = secret("XYECOC_KEYSTORE_PASSWORD", "xyecoc.keystorePassword")
+            keyAlias = secret("XYECOC_KEY_ALIAS", "xyecoc.keyAlias") ?: "release"
+            keyPassword = secret("XYECOC_KEY_PASSWORD", "xyecoc.keyPassword")
         }
     }
 
@@ -91,12 +96,12 @@ dependencies {
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    // Stable collections for Compose recomposition skipping
+    implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable:0.3.8")
 
-    // Networking: OkHttp & Retrofit & Socket.IO
+    // Networking: OkHttp & Socket.IO (Gson for (de)serialization)
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
-    implementation("com.squareup.retrofit2:retrofit:2.11.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.google.code.gson:gson:2.11.0")
     implementation("io.socket:socket.io-client:2.1.1") {
         exclude(group = "org.json", module = "json")
@@ -111,10 +116,6 @@ dependencies {
     // Security & Crypto (EncryptedSharedPreferences)
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
-    // Coil for Image Loading
-    implementation("io.coil-kt:coil-compose:2.7.0")
-
-    // Pull to Refresh / Swipe
-    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+    // Background sync
     implementation("androidx.work:work-runtime-ktx:2.9.1")
 }

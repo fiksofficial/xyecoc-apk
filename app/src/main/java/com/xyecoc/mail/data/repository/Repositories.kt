@@ -9,6 +9,7 @@ import com.xyecoc.mail.data.model.*
 import com.xyecoc.mail.util.SecurePrefs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.Request
@@ -120,10 +121,24 @@ class AuthRepository(
 
 class MailRepository(
     private val api: ApiService = ApiService(),
-    val socketManager: SocketManager = SocketManager(),
+    // One process-wide socket shared by the foreground service and the inbox.
+    val socketManager: SocketManager = SocketManager.shared,
     private val prefs: SecurePrefs = XyecocApp.instance.securePrefs,
     private val db: AppDatabase = XyecocApp.instance.database
 ) {
+    /** Realtime push stream from the server (Socket.IO "response" events). */
+    val mailUpdates: SharedFlow<ApiResponse<Any>> get() = socketManager.mailUpdatesFlow
+
+    /** Persist a realtime socket payload into the offline cache. */
+    suspend fun applySocketUpdate(update: ApiResponse<Any>) {
+        if (update.error != null) return
+        update.mails?.let { mails ->
+            db.mailDao().insertMails(mails.map { it.copy(folder = "inbox") })
+        }
+        update.folders?.let { db.folderDao().insertFolders(it) }
+        update.tags?.let { db.tagDao().insertTags(it) }
+    }
+
     fun getLocalMails(folder: String): Flow<List<MailItem>> =
         db.mailDao().getMailsByFolder(folder)
 

@@ -5,6 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.xyecoc.mail.XyecocApp
 import com.xyecoc.mail.data.model.*
 import com.xyecoc.mail.data.repository.*
+import com.xyecoc.mail.ui.model.MailRow
+import com.xyecoc.mail.ui.model.toRow
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -85,6 +92,7 @@ sealed class AuthUiState {
     data class Error(val message: String) : AuthUiState()
 }
 
+@OptIn(FlowPreview::class)
 class InboxViewModel(
     private val mailRepo: MailRepository = MailRepository()
 ) : ViewModel() {
@@ -98,18 +106,20 @@ class InboxViewModel(
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
-    val mails: StateFlow<List<MailItem>> = combine(_currentFolder, _searchQuery) { folder, query ->
-        Pair(folder, query)
-    }.flatMapLatest { (folder, query) ->
-        mailRepo.getLocalMails(folder).map { list ->
-            if (query.isBlank()) list
-            else list.filter {
-                it.getDisplayName().contains(query, ignoreCase = true) ||
-                it.getDisplaySubject().contains(query, ignoreCase = true) ||
-                (it.snippet != null && it.snippet.contains(query, ignoreCase = true))
+    // Immutable render models built off the main thread; instant client-side search filter.
+    val mails: StateFlow<ImmutableList<MailRow>> =
+        combine(_currentFolder, _searchQuery) { folder, query -> folder to query }
+            .flatMapLatest { (folder, query) ->
+                mailRepo.getLocalMails(folder).map { list -> list to query }
             }
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+            .map { (list, query) ->
+                list.asSequence()
+                    .filter { query.isBlank() || it.matchesQuery(query) }
+                    .map { it.toRow() }
+                    .toImmutableList()
+            }
+            .flowOn(Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), persistentListOf())
 
     val folders: StateFlow<List<Folder>> = mailRepo.getLocalFolders()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -119,9 +129,32 @@ class InboxViewModel(
 
     init {
         refresh()
+
         val token = XyecocApp.instance.securePrefs.getToken()
         mailRepo.socketManager.connect(token)
+
+        // Realtime push: persist server updates into Room; the mails Flow repaints the UI
+        // with no extra polling.
+        viewModelScope.launch {
+            mailRepo.mailUpdates.collect { mailRepo.applySocketUpdate(it) }
+        }
+
+        // Debounced server-side search — one request after typing settles, not per keystroke.
+        viewModelScope.launch {
+            _searchQuery
+                .drop(1) // ignore the initial empty value (refresh() already covered it)
+                .debounce(300)
+                .distinctUntilChanged()
+                .collectLatest { q ->
+                    mailRepo.fetchMails(folder = _currentFolder.value, searchText = q.ifBlank { null })
+                }
+        }
     }
+
+    private fun MailItem.matchesQuery(query: String): Boolean =
+        getDisplayName().contains(query, ignoreCase = true) ||
+        getDisplaySubject().contains(query, ignoreCase = true) ||
+        snippet.contains(query, ignoreCase = true)
 
     fun selectFolder(folder: String) {
         _currentFolder.value = folder
@@ -129,10 +162,8 @@ class InboxViewModel(
     }
 
     fun onSearchQueryChanged(query: String) {
+        // State only — the debounced collector in init issues the network request.
         _searchQuery.value = query
-        viewModelScope.launch {
-            mailRepo.fetchMails(folder = _currentFolder.value, searchText = query.ifBlank { null })
-        }
     }
 
     fun refresh() {
@@ -143,9 +174,9 @@ class InboxViewModel(
         }
     }
 
-    fun toggleImportant(mail: MailItem) {
+    fun toggleImportant(id: Long) {
         viewModelScope.launch {
-            mailRepo.performMailAction(mail.id, "important")
+            mailRepo.performMailAction(id, "important")
         }
     }
 
