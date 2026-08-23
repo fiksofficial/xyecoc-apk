@@ -52,7 +52,23 @@ fun ComposeScreen(
 
     val filePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
-            // Stub for now
+            try {
+                var name = "attachment"
+                context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                        if (nameIndex != -1) name = cursor.getString(nameIndex)
+                    }
+                }
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val bytes = inputStream.readBytes()
+                    val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                    val extension = name.substringAfterLast('.', "")
+                    attachments.add(com.xyecoc.mail.data.model.Attachment(fileName = name, extension = extension, content = base64))
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Ошибка чтения файла", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -93,14 +109,34 @@ fun ComposeScreen(
 
 
                     Button(
-                        onClick = { showSendingDisabledDialog = true },
+                        onClick = {
+                            if (to.isBlank()) {
+                                Toast.makeText(context, "Укажите хотя бы одного получателя", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            viewModel.send(
+                                recipients = to,
+                                subject = subject,
+                                body = body.text,
+                                attachments = attachments.toList(),
+                                isDraft = false,
+                                onSuccess = {
+                                    Toast.makeText(context, "Письмо отправлено!", Toast.LENGTH_SHORT).show()
+                                    onNavigateBack()
+                                },
+                                onError = { err ->
+                                    Toast.makeText(context, err, Toast.LENGTH_LONG).show()
+                                }
+                            )
+                        },
+                        enabled = !isSending && to.isNotBlank(),
                         modifier = Modifier.padding(end = 8.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
                     ) {
                         if (isSending) {
                             CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                         } else {
-                            Icon(Icons.Filled.Send, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
                             Text("Отправить")
                         }
@@ -214,8 +250,28 @@ fun ComposeScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
 
+            if (attachments.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text("Вложения:", style = MaterialTheme.typography.labelMedium)
+                    attachments.forEach { attach ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Attachment, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(attach.fileName, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                            IconButton(onClick = { attachments.remove(attach) }, modifier = Modifier.size(24.dp)) {
+                                Icon(Icons.Default.Close, contentDescription = "Удалить", modifier = Modifier.size(16.dp))
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
             // Body field
             OutlinedTextField(
                 value = body,
