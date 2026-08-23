@@ -79,4 +79,8 @@ class SocketManager(
         socket?.off()
         socket = null
     }
+
+    companion object {
+        val shared = SocketManager()
+    }
 }
