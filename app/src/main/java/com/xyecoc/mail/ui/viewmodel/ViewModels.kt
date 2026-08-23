@@ -121,6 +121,19 @@ class InboxViewModel(
         refresh()
         val token = XyecocApp.instance.securePrefs.getToken()
         mailRepo.socketManager.connect(token)
+        
+        viewModelScope.launch {
+            folders.collect { folderList ->
+                val current = _currentFolder.value
+                val isSystem = listOf("inbox", "sent", "important", "draft", "spam", "trash").contains(current)
+                if (!isSystem && folderList.isNotEmpty()) {
+                    if (folderList.none { it.name == current }) {
+                        _currentFolder.value = "inbox"
+                        refresh()
+                    }
+                }
+            }
+        }
     }
 
     fun selectFolder(folder: String) {
@@ -368,7 +381,9 @@ class SettingsViewModel(
         viewModelScope.launch {
             val prof = settingsRepo.getProfile()
             if (!prof.email.isNullOrBlank() || prof.firstName != null) {
-                _profileName.value = "${prof.firstName ?: ""} ${prof.lastName ?: ""}".trim()
+                val fn = prof.firstName?.takeIf { it != "null" } ?: ""
+                val ln = prof.lastName?.takeIf { it != "null" } ?: ""
+                _profileName.value = "$fn $ln".trim()
                 _signature.value = prof.signature ?: ""
             }
             val sec = settingsRepo.getSecurityInfo()

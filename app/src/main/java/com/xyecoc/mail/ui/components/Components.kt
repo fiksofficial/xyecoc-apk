@@ -22,7 +22,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xyecoc.mail.data.model.MailItem
 import com.xyecoc.mail.util.DateUtils
-
+import com.xyecoc.mail.util.GravatarUtils
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 @Composable
 fun MailListItem(
     mail: MailItem,
@@ -45,6 +47,9 @@ fun MailListItem(
         ) {
             val displayName = mail.getDisplayName()
             val avatarChar = displayName.firstOrNull()?.uppercaseChar() ?: '?'
+            val avatarUrl = androidx.compose.runtime.remember(mail.fromEmail) {
+                GravatarUtils.getUrl(mail.fromEmail)
+            }
             Box(
                 modifier = Modifier
                     .size(44.dp)
@@ -58,6 +63,14 @@ fun MailListItem(
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     fontSize = 18.sp
                 )
+                if (avatarUrl.isNotEmpty()) {
+                    AsyncImage(
+                        model = avatarUrl,
+                        contentDescription = "Avatar",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(16.dp))

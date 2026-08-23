@@ -72,12 +72,24 @@ fun InboxScreen(
                             .background(MaterialTheme.colorScheme.primary),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            userEmail.firstOrNull()?.uppercase() ?: "U",
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp
-                        )
+                            val avatarChar = userEmail.firstOrNull()?.uppercase() ?: "U"
+                            val avatarUrl = androidx.compose.runtime.remember(userEmail) {
+                                com.xyecoc.mail.util.GravatarUtils.getUrl(userEmail)
+                            }
+                            Text(
+                                text = avatarChar,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp
+                            )
+                            if (avatarUrl.isNotEmpty()) {
+                                coil.compose.AsyncImage(
+                                    model = avatarUrl,
+                                    contentDescription = "My Avatar",
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
                     }
                     Spacer(Modifier.width(12.dp))
                     Column {

@@ -30,6 +30,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.xyecoc.mail.XyecocApp
 import com.xyecoc.mail.ui.viewmodel.ReaderViewModel
 import com.xyecoc.mail.util.DateUtils
+import com.xyecoc.mail.util.GravatarUtils
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 
 @Composable
 fun ReaderScreen(
@@ -158,6 +161,9 @@ fun ReaderScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             val displayName = mail.getDisplayName()
                             val avatarChar = displayName.firstOrNull()?.uppercaseChar() ?: '?'
+                            val avatarUrl = androidx.compose.runtime.remember(mail.fromEmail) {
+                                GravatarUtils.getUrl(mail.fromEmail)
+                            }
                             Box(
                                 modifier = Modifier
                                     .size(44.dp)
@@ -171,6 +177,14 @@ fun ReaderScreen(
                                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     fontSize = 18.sp
                                 )
+                                if (avatarUrl.isNotEmpty()) {
+                                    AsyncImage(
+                                        model = avatarUrl,
+                                        contentDescription = "Avatar",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
@@ -207,6 +221,17 @@ fun ReaderScreen(
                 AndroidView(
                     factory = { ctx ->
                         WebView(ctx).apply {
+                            settings.apply {
+                                javaScriptEnabled = false
+                                allowFileAccess = false
+                                allowContentAccess = false
+                                allowFileAccessFromFileURLs = false
+                                allowUniversalAccessFromFileURLs = false
+                                mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                                setSupportZoom(true)
+                                builtInZoomControls = true
+                                displayZoomControls = false
+                            }
                             webViewClient = object : WebViewClient() {
                                 override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                                     request?.url?.let { uri ->
@@ -235,7 +260,6 @@ fun ReaderScreen(
                                 }
                             }
                             settings.apply {
-                                javaScriptEnabled = false
                                 loadWithOverviewMode = true
                                 useWideViewPort = true
                                 defaultTextEncodingName = "utf-8"

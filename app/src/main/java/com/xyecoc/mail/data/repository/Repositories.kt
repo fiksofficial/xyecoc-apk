@@ -27,7 +27,9 @@ class AuthRepository(
         val response = api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
         val token = response.extractToken()
         if (response.isSuccess() && !token.isNullOrBlank()) {
-            db.clearAllTables()
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                db.clearAllTables()
+            }
             prefs.saveToken(token)
             prefs.saveEmail(email)
             db.accountDao().insertAccount(UserAccount(email = email, token = token))
@@ -76,7 +78,9 @@ class AuthRepository(
         val response = api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
         val token = response.extractToken()
         if (response.isSuccess() && !token.isNullOrBlank()) {
-            db.clearAllTables()
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                db.clearAllTables()
+            }
             prefs.saveToken(token)
             prefs.saveEmail(email)
         }

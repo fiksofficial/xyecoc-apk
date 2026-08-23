@@ -39,6 +39,7 @@ class ApiService(
                 val jsonBody = gson.toJson(payload)
                 val request = Request.Builder()
                     .url("$baseUrl/request")
+                    .header("Cache-Control", "no-transform")
                     .post(jsonBody.toRequestBody(jsonMediaType))
                     .build()
 
