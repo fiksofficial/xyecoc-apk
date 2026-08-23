@@ -357,9 +357,7 @@ class SettingsRepository(
             "signature_reply" to replySig,
             "signature_new" to newSig
         )
-        if (lastName.isNotBlank()) {
-            dataMap["last_name"] = lastName
-        }
+        dataMap["last_name"] = lastName
         
         val payload = RequestPayload(
             service = "account",
