@@ -298,6 +298,9 @@ fun ComposeScreen(
                 }
             }
 
+        }
+    }
+
     if (showSendingDisabledDialog) {
         AlertDialog(
             onDismissRequest = { showSendingDisabledDialog = false },
