@@ -216,6 +216,7 @@ data class RequestPayload(
     @SerializedName("last_mail_id") val lastMailId: Long? = null,
     val page: Int? = null,
     val draft: Boolean? = null,
+    @com.google.gson.annotations.SerializedName("draft_id") val draftId: Long? = null,
     @SerializedName("page_id") val pageId: String? = null
 )
 

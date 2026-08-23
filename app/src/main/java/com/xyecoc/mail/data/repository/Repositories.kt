@@ -229,12 +229,12 @@ class MailRepository(
         isDraft: Boolean = false
     ): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
-        val mappedAttachments = attachments.map { mapOf("filename" to it.fileName, "file_name" to it.fileName, "extension" to it.extension, "content" to it.content) }
+        val mappedAttachments = attachments.map { mapOf("filename" to it.fileName, "content" to it.content) }
         val payload = RequestPayload(
             service = "mail",
             action = "message-new",
             token = token,
-            draft = isDraft,
+            draft = if (isDraft) true else null,
             data = mapOf(
                 "users" to recipients.joinToString(","),
                 "subject" to subject,
