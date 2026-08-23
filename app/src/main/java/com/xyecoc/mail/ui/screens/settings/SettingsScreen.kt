@@ -97,6 +97,7 @@ fun SettingsScreen(
 
 @Composable
 fun ProfileTab(viewModel: SettingsViewModel, onLoggedOut: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
     var signature by remember { mutableStateOf("") }
