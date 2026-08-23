@@ -19,7 +19,7 @@ class AuthRepository(
     private val prefs: SecurePrefs = XyecocApp.instance.securePrefs,
     private val db: AppDatabase = XyecocApp.instance.database
 ) {
-    suspend fun login(email: String, password: String): ApiResponse<Any> {
+    suspend fun login(email: String, password: String): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val payload = RequestPayload(
             service = "account",
             action = "authorization",
@@ -33,19 +33,19 @@ class AuthRepository(
             prefs.saveEmail(email)
             db.accountDao().insertAccount(UserAccount(email = email, token = token))
         }
-        return response
+        response
     }
 
-    suspend fun checkMailbox(email: String): ApiResponse<Any> {
+    suspend fun checkMailbox(email: String): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val payload = RequestPayload(
             service = "account",
             action = "check-mailbox",
             data = mapOf("email" to email)
         )
-        return api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
+        api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
     }
 
-    suspend fun register(email: String, password: String, isAdditional: Boolean = false): ApiResponse<Any> {
+    suspend fun register(email: String, password: String, isAdditional: Boolean = false): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val dataMap = mutableMapOf<String, Any>(
             "email" to email,
             "password" to password,
@@ -59,10 +59,10 @@ class AuthRepository(
             action = "register",
             data = dataMap
         )
-        return api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
+        api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
     }
 
-    suspend fun verify2fa(email: String, password: String, secret: String, code: String): ApiResponse<Any> {
+    suspend fun verify2fa(email: String, password: String, secret: String, code: String): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val payload = RequestPayload(
             service = "account",
             action = "2fa-check",
@@ -81,10 +81,10 @@ class AuthRepository(
             prefs.saveToken(token)
             prefs.saveEmail(email)
         }
-        return response
+        response
     }
 
-    suspend fun forgotPassword(email: String, reserveEmail: String?, supportMessage: String?): ApiResponse<Any> {
+    suspend fun forgotPassword(email: String, reserveEmail: String?, supportMessage: String?): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val payload = RequestPayload(
             service = "account",
             action = "forgot-password",
@@ -94,10 +94,10 @@ class AuthRepository(
                 "forgot_support" to (supportMessage ?: "")
             )
         )
-        return api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
+        api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
     }
 
-    suspend fun refreshToken(expiredToken: String): ApiResponse<Any> {
+    suspend fun refreshToken(expiredToken: String): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val payload = RequestPayload(
             service = "account",
             action = "refresh-token",
@@ -108,7 +108,7 @@ class AuthRepository(
         if (resp.isSuccess() && !newToken.isNullOrBlank()) {
             prefs.saveToken(newToken)
         }
-        return resp
+        resp
     }
 
     fun logout() {
@@ -121,17 +121,14 @@ class AuthRepository(
 
 class MailRepository(
     private val api: ApiService = ApiService(),
-    // One process-wide socket shared by the foreground service and the inbox.
     val socketManager: SocketManager = SocketManager.shared,
     private val prefs: SecurePrefs = XyecocApp.instance.securePrefs,
     private val db: AppDatabase = XyecocApp.instance.database
 ) {
-    /** Realtime push stream from the server (Socket.IO "response" events). */
     val mailUpdates: SharedFlow<ApiResponse<Any>> get() = socketManager.mailUpdatesFlow
 
-    /** Persist a realtime socket payload into the offline cache. */
-    suspend fun applySocketUpdate(update: ApiResponse<Any>) {
-        if (update.error != null) return
+    suspend fun applySocketUpdate(update: ApiResponse<Any>) = withContext(Dispatchers.IO) {
+        if (update.error != null) return@withContext
         update.mails?.let { mails ->
             db.mailDao().insertMails(mails.map { it.copy(folder = "inbox") })
         }
@@ -148,7 +145,7 @@ class MailRepository(
     fun getLocalTags(): Flow<List<Tag>> =
         db.tagDao().getAllTags()
 
-    suspend fun fetchMails(folder: String = "inbox", searchText: String? = null, page: Int = 1, lastMailId: Long = 0): ApiResponse<Any> {
+    suspend fun fetchMails(folder: String = "inbox", searchText: String? = null, page: Int = 1, lastMailId: Long = 0): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(
             service = "mail",
@@ -184,10 +181,10 @@ class MailRepository(
             response.folders?.let { db.folderDao().insertFolders(it) }
             response.tags?.let { db.tagDao().insertTags(it) }
         }
-        return response
+        response
     }
 
-    suspend fun fetchMailDetails(mailId: Long): ApiResponse<Any> {
+    suspend fun fetchMailDetails(mailId: Long): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(
             service = "mail",
@@ -195,7 +192,7 @@ class MailRepository(
             token = token,
             params = mapOf("param_1" to mailId.toString(), "mail_id" to mailId)
         )
-        return api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
+        api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
     }
 
     suspend fun fetchMailBodyHtml(mailId: Long): String = withContext(Dispatchers.IO) {
@@ -226,7 +223,7 @@ class MailRepository(
         messageHtml: String,
         attachments: List<Attachment> = emptyList(),
         isDraft: Boolean = false
-    ): ApiResponse<Any> {
+    ): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val mappedAttachments = attachments.map { mapOf("filename" to it.fileName, "content" to it.content) }
         val payload = RequestPayload(
@@ -241,10 +238,10 @@ class MailRepository(
                 "attaches" to mappedAttachments
             )
         )
-        return api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
+        api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
     }
 
-    suspend fun performMailAction(mailId: Long, action: String, value: Any? = null, folder: String? = null): ApiResponse<Any> {
+    suspend fun performMailAction(mailId: Long, action: String, value: Any? = null, folder: String? = null): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(
             service = "mail",
@@ -266,10 +263,10 @@ class MailRepository(
                 "move-to-folder" -> (value as? String)?.let { db.mailDao().moveToFolder(mailId, it) }
             }
         }
-        return response
+        response
     }
 
-    suspend fun batchDeleteMails(mailIds: List<Long>, folder: String? = null): ApiResponse<Any> {
+    suspend fun batchDeleteMails(mailIds: List<Long>, folder: String? = null): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val idsStr = mailIds.joinToString(",")
         val payload = RequestPayload(
@@ -287,20 +284,20 @@ class MailRepository(
         if (response.error == null) {
             db.mailDao().deleteMails(mailIds)
         }
-        return response
+        response
     }
 
-    suspend fun markAllRead(): ApiResponse<Any> {
+    suspend fun markAllRead(): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(
             service = "mail",
             action = "read-all",
             token = token
         )
-        return api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
+        api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
     }
 
-    suspend fun reportViolation(mailId: Long, violationType: String): ApiResponse<Any> {
+    suspend fun reportViolation(mailId: Long, violationType: String): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(
             service = "mail",
@@ -312,10 +309,10 @@ class MailRepository(
                 "value" to violationType
             )
         )
-        return api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
+        api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
     }
 
-    suspend fun blockSender(mailId: Long): ApiResponse<Any> {
+    suspend fun blockSender(mailId: Long): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(
             service = "mail",
@@ -327,7 +324,7 @@ class MailRepository(
                 "value" to null
             )
         )
-        return api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
+        api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
     }
 }
 
@@ -341,13 +338,13 @@ class SettingsRepository(
     fun getLocalFolders(): Flow<List<Folder>> = db.folderDao().getAllFolders()
     fun getLocalTags(): Flow<List<Tag>> = db.tagDao().getAllTags()
 
-    suspend fun getProfile(): ApiResponse<Any> {
+    suspend fun getProfile(): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(service = "account", action = "profile", token = token)
-        return api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
+        api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
     }
 
-    suspend fun updateProfile(firstName: String, lastName: String, signature: String, replySig: Boolean, newSig: Boolean): ApiResponse<Any> {
+    suspend fun updateProfile(firstName: String, lastName: String, signature: String, replySig: Boolean, newSig: Boolean): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         
         val dataMap = mutableMapOf<String, Any>(
@@ -366,16 +363,16 @@ class SettingsRepository(
             token = token,
             data = dataMap
         )
-        return api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
+        api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
     }
 
-    suspend fun getSecurityInfo(): ApiResponse<Any> {
+    suspend fun getSecurityInfo(): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(service = "account", action = "security", token = token)
-        return api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
+        api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
     }
 
-    suspend fun checkPassword(password: String): ApiResponse<Any> {
+    suspend fun checkPassword(password: String): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(
             service = "account",
@@ -383,10 +380,10 @@ class SettingsRepository(
             token = token,
             data = mapOf("password" to password)
         )
-        return api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
+        api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
     }
 
-    suspend fun updatePassword(oldPass: String, newPass: String, code2fa: String?): ApiResponse<Any> {
+    suspend fun updatePassword(oldPass: String, newPass: String, code2fa: String?): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(
             service = "account",
@@ -401,10 +398,10 @@ class SettingsRepository(
                 }
             }
         )
-        return api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
+        api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
     }
 
-    suspend fun generate2faQr(password: String): ApiResponse<Any> {
+    suspend fun generate2faQr(password: String): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(
             service = "account",
@@ -412,10 +409,10 @@ class SettingsRepository(
             token = token,
             data = mapOf("password" to password)
         )
-        return api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
+        api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
     }
 
-    suspend fun verifyAndEnable2fa(email: String, password: String, secret: String, code: String): ApiResponse<Any> {
+    suspend fun verifyAndEnable2fa(email: String, password: String, secret: String, code: String): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val data = mapOf(
             "password" to password,
@@ -428,10 +425,10 @@ class SettingsRepository(
             token = token,
             data = data
         )
-        return api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
+        api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
     }
 
-    suspend fun check2fa(email: String, password: String, code: String, removeAuth: Boolean): ApiResponse<Any> {
+    suspend fun check2fa(email: String, password: String, code: String, removeAuth: Boolean): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(
             service = "account",
@@ -445,10 +442,10 @@ class SettingsRepository(
                 "remove_auth" to removeAuth
             )
         )
-        return api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
+        api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
     }
 
-    suspend fun disable2fa(password: String): ApiResponse<Any> {
+    suspend fun disable2fa(password: String): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(
             service = "account",
@@ -456,10 +453,10 @@ class SettingsRepository(
             token = token,
             data = mapOf("password" to password)
         )
-        return api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
+        api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
     }
 
-    suspend fun setReserveEmail(password: String, reserveEmail: String): ApiResponse<Any> {
+    suspend fun setReserveEmail(password: String, reserveEmail: String): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(
             service = "account",
@@ -467,10 +464,10 @@ class SettingsRepository(
             token = token,
             data = mapOf("password" to password, "email" to reserveEmail)
         )
-        return api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
+        api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
     }
 
-    suspend fun deleteOrCancelAccount(password: String): ApiResponse<Any> {
+    suspend fun deleteOrCancelAccount(password: String): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(
             service = "account",
@@ -478,10 +475,10 @@ class SettingsRepository(
             token = token,
             data = mapOf("password" to password)
         )
-        return api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
+        api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
     }
 
-    suspend fun fetchFoldersAndTags(): ApiResponse<Any> {
+    suspend fun fetchFoldersAndTags(): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(service = "account", action = "folders_tags", token = token)
         val resp = api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
@@ -491,10 +488,10 @@ class SettingsRepository(
             resp.folders?.let { db.folderDao().insertFolders(it) }
             resp.tags?.let { db.tagDao().insertTags(it) }
         }
-        return resp
+        resp
     }
 
-    suspend fun createFolder(name: String): ApiResponse<Any> {
+    suspend fun createFolder(name: String): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(
             service = "mail",
@@ -504,10 +501,10 @@ class SettingsRepository(
         )
         val resp = api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
         fetchFoldersAndTags()
-        return resp
+        resp
     }
 
-    suspend fun editFolder(id: Long, name: String, from: String, contains: String): ApiResponse<Any> {
+    suspend fun editFolder(id: Long, name: String, from: String, contains: String): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(
             service = "mail",
@@ -517,10 +514,10 @@ class SettingsRepository(
         )
         val resp = api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
         fetchFoldersAndTags()
-        return resp
+        resp
     }
 
-    suspend fun deleteFolder(id: Long): ApiResponse<Any> {
+    suspend fun deleteFolder(id: Long): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(
             service = "mail",
@@ -530,10 +527,10 @@ class SettingsRepository(
         )
         val resp = api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
         db.folderDao().deleteFolder(id)
-        return resp
+        resp
     }
 
-    suspend fun createTag(name: String, colorHex: String): ApiResponse<Any> {
+    suspend fun createTag(name: String, colorHex: String): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(
             service = "mail",
@@ -543,10 +540,10 @@ class SettingsRepository(
         )
         val resp = api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
         fetchFoldersAndTags()
-        return resp
+        resp
     }
 
-    suspend fun editTag(id: Long, name: String, colorHex: String, from: String, contains: String): ApiResponse<Any> {
+    suspend fun editTag(id: Long, name: String, colorHex: String, from: String, contains: String): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(
             service = "mail",
@@ -556,10 +553,10 @@ class SettingsRepository(
         )
         val resp = api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
         fetchFoldersAndTags()
-        return resp
+        resp
     }
 
-    suspend fun deleteTag(id: Long): ApiResponse<Any> {
+    suspend fun deleteTag(id: Long): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(
             service = "mail",
@@ -569,10 +566,10 @@ class SettingsRepository(
         )
         val resp = api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
         db.tagDao().deleteTag(id)
-        return resp
+        resp
     }
 
-    suspend fun fetchFilters(): ApiResponse<Any> {
+    suspend fun fetchFilters(): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(service = "account", action = "filters", token = token)
         val resp = api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
@@ -580,10 +577,10 @@ class SettingsRepository(
             db.filterDao().clearAll()
             resp.filters?.let { db.filterDao().insertFilters(it) }
         }
-        return resp
+        resp
     }
 
-    suspend fun createFilter(from: String, contains: String, folderId: Long?, action: String): ApiResponse<Any> {
+    suspend fun createFilter(from: String, contains: String, folderId: Long?, action: String): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(
             service = "mail",
@@ -598,10 +595,10 @@ class SettingsRepository(
         )
         val resp = api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
         fetchFilters()
-        return resp
+        resp
     }
 
-    suspend fun deleteFilter(id: Long): ApiResponse<Any> {
+    suspend fun deleteFilter(id: Long): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(
             service = "mail",
@@ -611,10 +608,10 @@ class SettingsRepository(
         )
         val resp = api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
         db.filterDao().deleteFilter(id)
-        return resp
+        resp
     }
 
-    suspend fun fetchAddresses(): ApiResponse<Any> {
+    suspend fun fetchAddresses(): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(service = "account", action = "addresses", token = token)
         val resp = api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
@@ -622,10 +619,10 @@ class SettingsRepository(
             db.aliasDao().clearAll()
             resp.addresses?.let { db.aliasDao().insertAliases(it) }
         }
-        return resp
+        resp
     }
 
-    suspend fun createAlias(aliasEmail: String): ApiResponse<Any> {
+    suspend fun createAlias(aliasEmail: String): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(
             service = "account",
@@ -640,10 +637,10 @@ class SettingsRepository(
         )
         val resp = api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
         fetchAddresses()
-        return resp
+        resp
     }
 
-    suspend fun deleteAlias(id: Long): ApiResponse<Any> {
+    suspend fun deleteAlias(id: Long): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(
             service = "mail",
@@ -653,7 +650,7 @@ class SettingsRepository(
         )
         val resp = api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
         db.aliasDao().deleteAlias(id)
-        return resp
+        resp
     }
 }
 
@@ -664,17 +661,17 @@ class SupportRepository(
 ) {
     fun getLocalFeedbacks(): Flow<List<FeedbackItem>> = db.feedbackDao().getAllFeedbacks()
 
-    suspend fun fetchQuestions(): ApiResponse<Any> {
+    suspend fun fetchQuestions(): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(service = "account", action = "questions", token = token)
         val resp = api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
         if (resp.error == null) {
             resp.questions?.let { db.feedbackDao().insertFeedbacks(it) }
         }
-        return resp
+        resp
     }
 
-    suspend fun createTicket(type: String, subject: String, message: String, attachments: List<Any> = emptyList()): ApiResponse<Any> {
+    suspend fun createTicket(type: String, subject: String, message: String, attachments: List<Any> = emptyList()): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(
             service = "admin",
@@ -689,10 +686,10 @@ class SupportRepository(
         )
         val resp = api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
         fetchQuestions()
-        return resp
+        resp
     }
 
-    suspend fun feedbackAction(id: Long, action: String): ApiResponse<Any> {
+    suspend fun feedbackAction(id: Long, action: String): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
         val payload = RequestPayload(
             service = "account",
@@ -704,6 +701,6 @@ class SupportRepository(
         if (action == "delete") {
             db.feedbackDao().deleteFeedback(id)
         }
-        return resp
+        resp
     }
 }
