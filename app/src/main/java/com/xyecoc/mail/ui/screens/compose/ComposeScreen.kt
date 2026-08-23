@@ -150,7 +150,7 @@ fun ComposeScreen(
                 .padding(padding)
                 .fillMaxSize()
                 .padding(16.dp)
-                .verticalScroll(rememberScrollState())
+
         ) {
             // Sender selector
             if (aliases.isNotEmpty()) {
@@ -278,7 +278,7 @@ fun ComposeScreen(
                 onValueChange = { body = it },
                 label = { Text("Текст сообщения") },
                 placeholder = { Text("Напишите ваше сообщение...") },
-                modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 250.dp),
+                modifier = Modifier.fillMaxWidth().weight(1f).defaultMinSize(minHeight = 150.dp),
                 shape = RoundedCornerShape(12.dp)
             )
 
@@ -297,32 +297,6 @@ fun ComposeScreen(
                     }
                 }
             }
-
-            // Attachments list
-            if (attachments.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text("Прикрепленные файлы (${attachments.size}):", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    attachments.forEach { attach ->
-                        InputChip(
-                            selected = false,
-                            onClick = {},
-                            label = { Text(attach.fileName) },
-                            trailingIcon = {
-                                IconButton(onClick = { attachments.remove(attach) }, modifier = Modifier.size(18.dp)) {
-                                    Icon(Icons.Default.Close, contentDescription = "Удалить")
-                                }
-                            }
-                        )
-                    }
-                }
-            }
-        }
-    }
 
     if (showSendingDisabledDialog) {
         AlertDialog(
