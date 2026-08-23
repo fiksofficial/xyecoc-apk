@@ -1,4 +1,6 @@
 package com.xyecoc.mail.ui.screens.compose
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
