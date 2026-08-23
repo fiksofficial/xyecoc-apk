@@ -16,12 +16,13 @@ class AuthViewModel(
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
     fun login(email: String, pass: String) {
+        val fullEmail = if (!email.contains("@")) "$email@xyecoc.com" else email
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
-            val resp = authRepo.login(email, pass)
+            val resp = authRepo.login(fullEmail, pass)
             when (resp.status) {
                 1 -> _uiState.value = AuthUiState.Success
-                2 -> _uiState.value = AuthUiState.Requires2FA(email, pass)
+                2 -> _uiState.value = AuthUiState.Requires2FA(fullEmail, pass)
                 else -> {
                     if (resp.isSuccess() && !resp.extractToken().isNullOrBlank()) {
                         _uiState.value = AuthUiState.Success

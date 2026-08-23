@@ -27,6 +27,7 @@ class AuthRepository(
         val response = api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
         val token = response.extractToken()
         if (response.isSuccess() && !token.isNullOrBlank()) {
+            db.clearAllTables()
             prefs.saveToken(token)
             prefs.saveEmail(email)
             db.accountDao().insertAccount(UserAccount(email = email, token = token))
@@ -75,6 +76,7 @@ class AuthRepository(
         val response = api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
         val token = response.extractToken()
         if (response.isSuccess() && !token.isNullOrBlank()) {
+            db.clearAllTables()
             prefs.saveToken(token)
             prefs.saveEmail(email)
         }
@@ -154,7 +156,7 @@ class MailRepository(
                         }
                     } else {
                         val fetchedIds = mails.map { it.id }
-                        val minId = fetchedIds.minOrNull() ?: 0L
+                        val minId = if (page == 1 && mails.size < 20) 0L else (fetchedIds.minOrNull() ?: 0L)
                         if (page == 1 && lastMailId == 0L) {
                             db.mailDao().deleteMailsNotInList(folder, minId, fetchedIds)
                         } else {

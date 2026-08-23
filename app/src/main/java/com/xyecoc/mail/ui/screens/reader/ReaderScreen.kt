@@ -220,6 +220,7 @@ fun ReaderScreen(
                                     }
                                     return super.shouldOverrideUrlLoading(view, request)
                                 }
+                                @Suppress("DEPRECATION")
                                 override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
                                     url?.let {
                                         try {
@@ -263,11 +264,12 @@ fun ReaderScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Row(
+                        androidx.compose.foundation.lazy.LazyRow(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            validAttachments.forEach { attach ->
+                            items(validAttachments.size) { index ->
+                                val attach = validAttachments[index]
                                 val token = XyecocApp.instance.securePrefs.getToken() ?: ""
                                 val downloadUrl = "https://cdn.xyecoc.com/data/attachments/mails/" + (attach.createdAt.split("T").firstOrNull() ?: "") + "/" + attach.id + "." + attach.extension + "?token=" + token
                                 AssistChip(
