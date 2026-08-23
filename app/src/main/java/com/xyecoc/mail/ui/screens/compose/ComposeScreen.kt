@@ -112,6 +112,7 @@ fun ComposeScreen(
                 .padding(padding)
                 .fillMaxSize()
                 .padding(16.dp)
+                .verticalScroll(rememberScrollState())
         ) {
             // Sender selector
             if (aliases.isNotEmpty()) {
@@ -219,7 +220,7 @@ fun ComposeScreen(
                 onValueChange = { body = it },
                 label = { Text("Текст сообщения") },
                 placeholder = { Text("Напишите ваше сообщение...") },
-                modifier = Modifier.fillMaxWidth().weight(1f),
+                modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 250.dp),
                 shape = RoundedCornerShape(12.dp)
             )
 
