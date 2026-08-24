@@ -229,7 +229,7 @@ class MailRepository(
         isDraft: Boolean = false
     ): ApiResponse<Any> = withContext(Dispatchers.IO) {
         val token = prefs.getToken() ?: ""
-        val mappedAttachments = attachments.map { mapOf("filename" to it.fileName, "file_name" to it.fileName, "name" to it.fileName, "extension" to it.extension, "file_size" to it.fileSize, "content" to it.content) }
+        val mappedAttachments = attachments.map { mapOf("filename" to it.fileName, "content" to it.content) }
         val payload = RequestPayload(
             service = "mail",
             action = "message-new",
@@ -239,8 +239,7 @@ class MailRepository(
                 "users" to recipients.joinToString(","),
                 "subject" to subject,
                 "message" to messageHtml,
-                "attaches" to mappedAttachments,
-                "attachments" to mappedAttachments
+                "attaches" to mappedAttachments
             )
         )
         api.request(payload, object : TypeToken<ApiResponse<Any>>() {})
