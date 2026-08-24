@@ -31,6 +31,9 @@ class SecurePrefs(context: Context) {
     private val _themeModeFlow = MutableStateFlow(getThemeMode())
     val themeModeFlow: StateFlow<String> = _themeModeFlow.asStateFlow()
 
+    private val _avatarProviderFlow = MutableStateFlow(getAvatarProvider())
+    val avatarProviderFlow: StateFlow<String> = _avatarProviderFlow.asStateFlow()
+
     fun saveToken(token: String?) {
         prefs.edit().putString("auth_token", token).apply()
         _tokenFlow.value = token
@@ -51,6 +54,15 @@ class SecurePrefs(context: Context) {
     fun saveThemeMode(mode: String) {
         prefs.edit().putString("theme_mode", mode).apply()
         _themeModeFlow.value = mode
+    }
+
+    fun saveAvatarProvider(provider: String) {
+        prefs.edit().putString("avatar_provider", provider).apply()
+        _avatarProviderFlow.value = provider
+    }
+
+    fun getAvatarProvider(): String {
+        return prefs.getString("avatar_provider", "gravatar") ?: "gravatar"
     }
 
     fun getThemeMode(): String {

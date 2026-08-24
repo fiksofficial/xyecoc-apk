@@ -1,4 +1,9 @@
-package com.xyecoc.mail.util
+with open("app/src/main/java/com/xyecoc/mail/util/GravatarUtils.kt", "r") as f:
+    content = f.read()
+
+import re
+
+new_content = """package com.xyecoc.mail.util
 
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
@@ -47,4 +52,7 @@ object GravatarUtils {
             }
         }
     }
-}
+}"""
+
+with open("app/src/main/java/com/xyecoc/mail/util/GravatarUtils.kt", "w") as f:
+    f.write(new_content)

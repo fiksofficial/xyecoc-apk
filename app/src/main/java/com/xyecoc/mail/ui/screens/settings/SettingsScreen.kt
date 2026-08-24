@@ -105,6 +105,7 @@ fun ProfileTab(viewModel: SettingsViewModel, onLoggedOut: () -> Unit) {
     val currentSig by viewModel.signature.collectAsState()
 
     var selectedTheme by remember { mutableStateOf(XyecocApp.instance.securePrefs.getThemeMode()) }
+    var selectedAvatarProvider by remember { mutableStateOf(XyecocApp.instance.securePrefs.getAvatarProvider()) }
 
     LaunchedEffect(profileName) {
         val parts = profileName.split(" ")
@@ -177,6 +178,38 @@ fun ProfileTab(viewModel: SettingsViewModel, onLoggedOut: () -> Unit) {
                         selectedTheme = key
                         XyecocApp.instance.securePrefs.saveThemeMode(key)
                         viewModel.showFeedback("Тема оформления изменена: " + label)
+                    },
+                    label = { Text(label) }
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("Провайдер аватарок", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(8.dp))
+        androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            val providers = listOf(
+                "gravatar" to "Gravatar",
+                "identicon" to "Identicon",
+                "monsterid" to "Monsters",
+                "robohash" to "RoboHash",
+                "robohash2" to "RoboHash (Monsters)",
+                "robohash3" to "RoboHash (Heads)",
+                "robohash4" to "RoboHash (Cats)",
+                "robohash5" to "RoboHash (Humans)",
+                "dicebear_bottts" to "Bottts",
+                "dicebear_adventurer" to "Adventurer",
+                "dicebear_fun-emoji" to "Fun Emoji",
+                "ui_avatars" to "Initials (UI Avatars)"
+            )
+            items(providers.size) { index ->
+                val (key, label) = providers[index]
+                FilterChip(
+                    selected = selectedAvatarProvider == key,
+                    onClick = {
+                        selectedAvatarProvider = key
+                        XyecocApp.instance.securePrefs.saveAvatarProvider(key)
+                        viewModel.showFeedback("Провайдер изменён: " + label)
                     },
                     label = { Text(label) }
                 )
