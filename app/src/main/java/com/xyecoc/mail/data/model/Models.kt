@@ -35,8 +35,8 @@ data class MailItem(
 
 data class Attachment(
     val id: Long = 0,
-    @SerializedName("file_name") val fileName: String = "",
-    @SerializedName("file_size") val fileSize: Long = 0,
+    @SerializedName("file_name", alternate = ["filename", "name"]) val fileName: String = "",
+    @SerializedName("file_size", alternate = ["size"]) val fileSize: Long = 0,
     val extension: String = "",
     val content: String? = null,
     @SerializedName("created_at") val createdAt: String = ""
@@ -69,7 +69,7 @@ data class MailDetails(
     }
 
     fun getValidAttachments(): List<Attachment> {
-        return attachments.filterNotNull().filter { !it.fileName.isNullOrBlank() }
+        return attachments.filterNotNull()
     }
 }
 
