@@ -404,7 +404,9 @@ fun InboxScreen(
                     }
 
                     // 3. Промо-баннер (MP4 со звуком, GIF, JPG, PNG)
-                    com.xyecoc.mail.ui.components.PromoBanner(rc = rc)
+                    androidx.compose.runtime.key(configTick) {
+                        com.xyecoc.mail.ui.components.PromoBanner(rc = rc, configTick = configTick)
+                    }
 
                     Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                         if (displayedMails.isEmpty()) {

@@ -2,6 +2,7 @@ package com.xyecoc.mail.ui.components
 
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,9 +24,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
@@ -35,16 +40,19 @@ import com.xyecoc.mail.util.RemoteConfigManager
 @Composable
 fun PromoBanner(
     rc: RemoteConfigManager,
+    configTick: Long = 0L,
     modifier: Modifier = Modifier
 ) {
     if (!rc.promoBannerEnabled) return
 
     val context = LocalContext.current
-    val mediaUrl = rc.promoBannerMediaUrl.trim()
-    val text = rc.promoBannerText.trim()
-    val clickUrl = rc.promoBannerUrl.trim()
+    val mediaUrl = rc.promoBannerMediaUrl
+    val text = rc.promoBannerText
+    val clickUrl = rc.promoBannerUrl
 
-    val bannerColor = remember(rc.promoBannerColor) {
+    if (mediaUrl.isBlank() && text.isBlank()) return
+
+    val bannerColor = remember(rc.promoBannerColor, configTick) {
         try {
             if (rc.promoBannerColor.isNotBlank()) {
                 Color(android.graphics.Color.parseColor(rc.promoBannerColor))
@@ -62,7 +70,7 @@ fun PromoBanner(
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(clickUrl))
                 context.startActivity(intent)
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("PromoBanner", "Failed to open URL: $clickUrl", e)
             }
         }
     }
@@ -82,20 +90,45 @@ fun PromoBanner(
                 val isVideo = mediaUrl.contains(".mp4", ignoreCase = true)
 
                 if (isVideo) {
-                    var isMuted by remember { mutableStateOf(!rc.promoBannerSoundDefault) }
+                    var isMuted by remember(mediaUrl, configTick) {
+                        mutableStateOf(!rc.promoBannerSoundDefault)
+                    }
+                    var isBuffering by remember { mutableStateOf(true) }
 
-                    val exoPlayer = remember(mediaUrl) {
-                        ExoPlayer.Builder(context).build().apply {
-                            val mediaItem = MediaItem.Builder()
-                                .setUri(mediaUrl)
-                                .setMimeType(androidx.media3.common.MimeTypes.VIDEO_MP4)
-                                .build()
-                            setMediaItem(mediaItem)
-                            repeatMode = Player.REPEAT_MODE_ALL
-                            volume = if (isMuted) 0f else 1f
-                            playWhenReady = true
-                            prepare()
-                        }
+                    val exoPlayer = remember(mediaUrl, configTick) {
+                        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+                            .setAllowCrossProtocolRedirects(true)
+                            .setConnectTimeoutMs(15000)
+                            .setReadTimeoutMs(15000)
+
+                        val mediaSourceFactory = DefaultMediaSourceFactory(httpDataSourceFactory)
+
+                        ExoPlayer.Builder(context)
+                            .setMediaSourceFactory(mediaSourceFactory)
+                            .build().apply {
+                                val mediaItem = MediaItem.Builder()
+                                    .setUri(mediaUrl)
+                                    .setMimeType(MimeTypes.VIDEO_MP4)
+                                    .build()
+                                setMediaItem(mediaItem)
+                                repeatMode = Player.REPEAT_MODE_ALL
+                                volume = if (isMuted) 0f else 1f
+                                playWhenReady = true
+
+                                addListener(object : Player.Listener {
+                                    override fun onPlaybackStateChanged(playbackState: Int) {
+                                        isBuffering = playbackState == Player.STATE_BUFFERING
+                                        Log.d("PromoBanner", "Playback state: $playbackState")
+                                    }
+
+                                    override fun onPlayerError(error: PlaybackException) {
+                                        Log.e("PromoBanner", "ExoPlayer error: ${error.message}", error)
+                                        isBuffering = false
+                                    }
+                                })
+
+                                prepare()
+                            }
                     }
 
                     DisposableEffect(exoPlayer) {
@@ -120,12 +153,36 @@ fun PromoBanner(
                                     player = exoPlayer
                                     useController = false
                                     resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                                    isClickable = false
+                                    isFocusable = false
                                 }
                             },
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clickable(enabled = clickUrl.isNotBlank(), onClick = onBannerClick)
+                            update = { view ->
+                                if (view.player != exoPlayer) {
+                                    view.player = exoPlayer
+                                }
+                            },
+                            modifier = Modifier.fillMaxSize()
                         )
+
+                        // Прозрачный слой клика для видео
+                        if (clickUrl.isNotBlank()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clickable(onClick = onBannerClick)
+                            )
+                        }
+
+                        // Индикатор буферизации
+                        if (isBuffering) {
+                            CircularProgressIndicator(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .align(Alignment.Center),
+                                color = Color.White
+                            )
+                        }
 
                         // Кнопка переключения звука (вкл/выкл) для MP4
                         IconButton(

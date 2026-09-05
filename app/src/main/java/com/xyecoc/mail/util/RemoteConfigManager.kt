@@ -189,12 +189,49 @@ object RemoteConfigManager {
     val accentColor: String          get() = config.getString("accent_color")
 
     // Промо баннер
-    val promoBannerEnabled: Boolean  get() = config.getBoolean("promo_banner_enabled")
-    val promoBannerText: String      get() = config.getString("promo_banner_text")
-    val promoBannerUrl: String       get() = config.getString("promo_banner_url")
-    val promoBannerColor: String     get() = config.getString("promo_banner_color")
-    val promoBannerMediaUrl: String  get() = config.getString("promo_banner_media_url")
-    val promoBannerSoundDefault: Boolean get() = config.getBoolean("promo_banner_sound_enabled")
+    val promoBannerEnabled: Boolean get() {
+        val boolVal = config.getBoolean("promo_banner_enabled")
+        val strVal = config.getString("promo_banner_enabled").trim().lowercase()
+        val isExplicitTrue = boolVal || strVal in listOf("true", "1", "yes", "on")
+        val isExplicitFalse = strVal in listOf("false", "0", "no", "off")
+        if (isExplicitFalse) return false
+        // Если указано медиа или текст промо — автоматически считаем баннер включенным
+        return isExplicitTrue || promoBannerMediaUrl.isNotBlank() || promoBannerText.isNotBlank()
+    }
+
+    val promoBannerText: String get() {
+        val v = config.getString("promo_banner_text").trim()
+        if (v.isNotBlank()) return v
+        return config.getString("promoBannerText").trim()
+    }
+
+    val promoBannerUrl: String get() {
+        val v = config.getString("promo_banner_url").trim()
+        if (v.isNotBlank()) return v
+        return config.getString("promoBannerUrl").trim()
+    }
+
+    val promoBannerColor: String get() {
+        val v = config.getString("promo_banner_color").trim()
+        if (v.isNotBlank()) return v
+        return config.getString("promoBannerColor").trim()
+    }
+
+    val promoBannerMediaUrl: String get() {
+        val raw = config.getString("promo_banner_media_url").trim()
+            .ifBlank { config.getString("promoBannerMediaUrl").trim() }
+            .ifBlank { config.getString("promo_media_url").trim() }
+
+        // Автоматически нормализуем GitHub raw ссылки для прямого CDN стриминга
+        if (raw.contains("github.com/") && raw.contains("/raw/")) {
+            return raw.replace("github.com/", "raw.githubusercontent.com/").replace("/raw/", "/")
+        }
+        return raw
+    }
+
+    val promoBannerSoundDefault: Boolean get() =
+        config.getBoolean("promo_banner_sound_enabled") ||
+        config.getString("promo_banner_sound_enabled").trim().lowercase() in listOf("true", "1", "yes", "on")
 
     // Минимальная версия
     val minAppVersionCode: Long      get() = config.getLong("min_app_version_code")
