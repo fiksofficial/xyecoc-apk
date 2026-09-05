@@ -86,7 +86,10 @@ fun PromoBanner(
 
                     val exoPlayer = remember(mediaUrl) {
                         ExoPlayer.Builder(context).build().apply {
-                            val mediaItem = MediaItem.fromUri(mediaUrl)
+                            val mediaItem = MediaItem.Builder()
+                                .setUri(mediaUrl)
+                                .setMimeType(androidx.media3.common.MimeTypes.VIDEO_MP4)
+                                .build()
                             setMediaItem(mediaItem)
                             repeatMode = Player.REPEAT_MODE_ALL
                             volume = if (isMuted) 0f else 1f
