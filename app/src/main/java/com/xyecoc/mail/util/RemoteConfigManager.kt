@@ -72,6 +72,8 @@ object RemoteConfigManager {
         "promo_banner_text"            to "",
         "promo_banner_url"             to "",
         "promo_banner_color"           to "#6750A4",
+        "promo_banner_media_url"       to "",          // Ссылка на MP4, GIF, JPG, PNG
+        "promo_banner_sound_enabled"   to "false",     // Включен ли звук по умолчанию для MP4
 
         // Минимальная поддерживаемая версия
         "min_app_version_code"         to "1",         // versionCode ниже — показать диалог обновления
@@ -191,6 +193,8 @@ object RemoteConfigManager {
     val promoBannerText: String      get() = config.getString("promo_banner_text")
     val promoBannerUrl: String       get() = config.getString("promo_banner_url")
     val promoBannerColor: String     get() = config.getString("promo_banner_color")
+    val promoBannerMediaUrl: String  get() = config.getString("promo_banner_media_url")
+    val promoBannerSoundDefault: Boolean get() = config.getBoolean("promo_banner_sound_enabled")
 
     // Минимальная версия
     val minAppVersionCode: Long      get() = config.getLong("min_app_version_code")

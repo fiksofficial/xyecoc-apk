@@ -43,6 +43,13 @@ class XyecocApp : Application(), ImageLoaderFactory {
     override fun newImageLoader(): ImageLoader {
         val cacheSizeMb = RemoteConfigManager.avatarCacheSizeMb.coerceAtLeast(5L)
         return ImageLoader.Builder(this)
+            .components {
+                if (android.os.Build.VERSION.SDK_INT >= 28) {
+                    add(coil.decode.ImageDecoderDecoder.Factory())
+                } else {
+                    add(coil.decode.GifDecoder.Factory())
+                }
+            }
             .diskCache {
                 DiskCache.Builder()
                     .directory(cacheDir.resolve("image_cache"))

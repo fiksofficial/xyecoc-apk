@@ -113,8 +113,13 @@ dependencies {
     // Security & Crypto (EncryptedSharedPreferences)
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
-    // Coil for Image Loading
+    // Coil for Image Loading & GIF support
     implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("io.coil-kt:coil-gif:2.7.0")
+
+    // Media3 ExoPlayer for MP4 video playback in Promo Banner
+    implementation("androidx.media3:media3-exoplayer:1.4.1")
+    implementation("androidx.media3:media3-ui:1.4.1")
 
     // Pull to Refresh / Swipe
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")

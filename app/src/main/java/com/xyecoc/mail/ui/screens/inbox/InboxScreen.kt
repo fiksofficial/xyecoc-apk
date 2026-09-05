@@ -403,33 +403,8 @@ fun InboxScreen(
                         }
                     }
 
-                    // 3. Промо-баннер
-                    if (rc.promoBannerEnabled && rc.promoBannerText.isNotBlank()) {
-                        val bannerColor = try {
-                            androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(rc.promoBannerColor))
-                        } catch (e: Exception) {
-                            MaterialTheme.colorScheme.primaryContainer
-                        }
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = bannerColor),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 6.dp)
-                                .clickable {
-                                    if (rc.promoBannerUrl.isNotBlank()) {
-                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(rc.promoBannerUrl))
-                                        context.startActivity(intent)
-                                    }
-                                }
-                        ) {
-                            Text(
-                                text = rc.promoBannerText,
-                                modifier = Modifier.padding(12.dp),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
+                    // 3. Промо-баннер (MP4 со звуком, GIF, JPG, PNG)
+                    com.xyecoc.mail.ui.components.PromoBanner(rc = rc)
 
                     Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                         if (displayedMails.isEmpty()) {
