@@ -14,6 +14,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.logging.HttpLoggingInterceptor
 import java.util.concurrent.TimeUnit
+import com.xyecoc.mail.util.RemoteConfigManager
 
 class ApiService(
     val baseUrl: String = "https://api.xyecoc.com",
@@ -22,38 +23,55 @@ class ApiService(
     private val gson = GsonBuilder().serializeNulls().create()
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
-    val client = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(20, TimeUnit.SECONDS)
-        .writeTimeout(20, TimeUnit.SECONDS)
-        .addInterceptor(HttpLoggingInterceptor { message ->
-            Log.d("XyecocApi", message)
-        }.apply {
-            level = HttpLoggingInterceptor.Level.BODY
-        })
-        .build()
+    private fun getEffectiveUrl(): String {
+        val rcUrl = RemoteConfigManager.apiBaseUrl
+        return if (rcUrl.isNotBlank()) rcUrl else "$baseUrl/request"
+    }
+
+    val client: OkHttpClient
+        get() {
+            val timeout = RemoteConfigManager.apiTimeoutSeconds.coerceIn(5L, 120L)
+            return OkHttpClient.Builder()
+                .connectTimeout(timeout, TimeUnit.SECONDS)
+                .readTimeout(timeout, TimeUnit.SECONDS)
+                .writeTimeout(timeout, TimeUnit.SECONDS)
+                .addInterceptor(HttpLoggingInterceptor { message ->
+                    Log.d("XyecocApi", message)
+                }.apply {
+                    level = HttpLoggingInterceptor.Level.BODY
+                })
+                .build()
+        }
 
     suspend fun <T> request(payload: RequestPayload, typeToken: TypeToken<ApiResponse<T>>): ApiResponse<T> =
         withContext(Dispatchers.IO) {
-            try {
-                val jsonBody = gson.toJson(payload)
-                val request = Request.Builder()
-                    .url("$baseUrl/request")
-                    .header("Cache-Control", "no-transform")
-                    .post(jsonBody.toRequestBody(jsonMediaType))
-                    .build()
+            val maxRetries = RemoteConfigManager.apiRetryCount.toInt().coerceIn(1, 5)
+            var attempt = 0
+            var lastError = "Network error"
 
-                val response = client.newCall(request).execute()
-                val responseBody = response.body?.string() ?: ""
+            while (attempt < maxRetries) {
+                attempt++
+                try {
+                    val jsonBody = gson.toJson(payload)
+                    val request = Request.Builder()
+                        .url(getEffectiveUrl())
+                        .header("Cache-Control", "no-transform")
+                        .post(jsonBody.toRequestBody(jsonMediaType))
+                        .build()
 
-                if (response.isSuccessful && responseBody.isNotBlank()) {
-                    gson.fromJson(responseBody, typeToken.type)
-                } else {
-                    ApiResponse(status = 0, message = "HTTP error: ${response.code}")
+                    val response = client.newCall(request).execute()
+                    val responseBody = response.body?.string() ?: ""
+
+                    if (response.isSuccessful && responseBody.isNotBlank()) {
+                        return@withContext gson.fromJson<ApiResponse<T>>(responseBody, typeToken.type)
+                    } else {
+                        lastError = "HTTP error: ${response.code}"
+                    }
+                } catch (e: Exception) {
+                    Log.e("XyecocApi", "Attempt $attempt/$maxRetries failed: ${e.message}", e)
+                    lastError = e.localizedMessage ?: "Network error"
                 }
-            } catch (e: Exception) {
-                Log.e("XyecocApi", "Request failed: ${e.message}", e)
-                ApiResponse(status = 0, message = e.localizedMessage ?: "Network error")
             }
+            ApiResponse(status = 0, message = lastError)
         }
 }

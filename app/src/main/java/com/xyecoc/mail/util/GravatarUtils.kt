@@ -10,6 +10,7 @@ object GravatarUtils {
     private val cache = ConcurrentHashMap<String, String>()
 
     fun getUrl(rawEmail: String?): String {
+        if (!RemoteConfigManager.avatarsEnabled) return ""
         if (rawEmail.isNullOrBlank()) return ""
         
         // Extract email if it's in the format "Name <email@domain.com>"

@@ -53,6 +53,11 @@ fun ComposeScreen(
     val filePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
             try {
+                val maxCount = com.xyecoc.mail.util.RemoteConfigManager.maxAttachmentCount
+                if (attachments.size >= maxCount) {
+                    Toast.makeText(context, "Максимум $maxCount вложений", Toast.LENGTH_SHORT).show()
+                    return@rememberLauncherForActivityResult
+                }
                 var name = "attachment"
                 context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
                     if (cursor.moveToFirst()) {
@@ -62,6 +67,11 @@ fun ComposeScreen(
                 }
                 context.contentResolver.openInputStream(uri)?.use { inputStream ->
                     val bytes = inputStream.readBytes()
+                    val maxSizeMb = com.xyecoc.mail.util.RemoteConfigManager.maxAttachmentSizeMb
+                    if (bytes.size > maxSizeMb * 1024 * 1024) {
+                        Toast.makeText(context, "Файл превышает лимит $maxSizeMb МБ", Toast.LENGTH_SHORT).show()
+                        return@rememberLauncherForActivityResult
+                    }
                     val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
                     val extension = name.substringAfterLast('.', "")
                     attachments.add(com.xyecoc.mail.data.model.Attachment(fileName = name, extension = extension, content = base64))
@@ -83,35 +93,44 @@ fun ComposeScreen(
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = {
-                            viewModel.send(
-                                recipients = to,
-                                subject = subject,
-                                body = body.text,
-                                attachments = attachments.toList(),
-                                isDraft = true,
-                                onSuccess = {
-                                    Toast.makeText(context, "Черновик сохранён", Toast.LENGTH_SHORT).show()
-                                    onNavigateBack()
-                                },
-                                onError = { err ->
-                                    Toast.makeText(context, err, Toast.LENGTH_LONG).show()
-                                }
-                            )
+                    if (com.xyecoc.mail.util.RemoteConfigManager.draftsEnabled) {
+                        IconButton(
+                            onClick = {
+                                viewModel.send(
+                                    recipients = to,
+                                    subject = subject,
+                                    body = body.text,
+                                    attachments = attachments.toList(),
+                                    isDraft = true,
+                                    onSuccess = {
+                                        Toast.makeText(context, "Черновик сохранён", Toast.LENGTH_SHORT).show()
+                                        onNavigateBack()
+                                    },
+                                    onError = { err ->
+                                        Toast.makeText(context, err, Toast.LENGTH_LONG).show()
+                                    }
+                                )
+                            }
+                        ) {
+                            Icon(Icons.Default.Save, contentDescription = "Сохранить черновик")
                         }
-                    ) {
-                        Icon(Icons.Default.Save, contentDescription = "Сохранить черновик")
                     }
-                    IconButton(onClick = { filePickerLauncher.launch("*/*") }) {
-                        Icon(Icons.Default.Attachment, contentDescription = "Вложения")
+                    if (com.xyecoc.mail.util.RemoteConfigManager.attachmentsEnabled) {
+                        IconButton(onClick = { filePickerLauncher.launch("*/*") }) {
+                            Icon(Icons.Default.Attachment, contentDescription = "Вложения")
+                        }
                     }
-
 
                     Button(
                         onClick = {
                             if (to.isBlank()) {
                                 Toast.makeText(context, "Укажите хотя бы одного получателя", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            val recipientCount = to.split(",").map { it.trim() }.filter { it.isNotEmpty() }.size
+                            val maxRecipients = com.xyecoc.mail.util.RemoteConfigManager.maxRecipientsCount
+                            if (recipientCount > maxRecipients) {
+                                Toast.makeText(context, "Слишком много получателей (максимум $maxRecipients)", Toast.LENGTH_SHORT).show()
                                 return@Button
                             }
                             viewModel.send(

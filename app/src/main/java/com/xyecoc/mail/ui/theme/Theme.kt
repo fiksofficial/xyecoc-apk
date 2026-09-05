@@ -65,13 +65,26 @@ fun XyecocMailTheme(
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
-    val colorScheme = when {
+    val baseColorScheme = when {
         isOled -> OledColors
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
         darkTheme -> DarkColors
         else -> LightColors
+    }
+
+    val customAccent = try {
+        val hex = com.xyecoc.mail.util.RemoteConfigManager.accentColor
+        if (hex.isNotBlank()) androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(hex)) else null
+    } catch (e: Exception) {
+        null
+    }
+
+    val colorScheme = if (customAccent != null) {
+        baseColorScheme.copy(primary = customAccent)
+    } else {
+        baseColorScheme
     }
 
     MaterialTheme(

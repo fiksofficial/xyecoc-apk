@@ -55,12 +55,16 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val themeMode by XyecocApp.instance.securePrefs.themeModeFlow.collectAsState(initial = "system")
-            val darkTheme = when (themeMode) {
+            val forceTheme = RemoteConfigManager.forceTheme
+            val effectiveTheme = if (forceTheme.isNotBlank()) forceTheme else themeMode
+            val darkTheme = when (effectiveTheme) {
                 "dark", "oled" -> true
                 "light" -> false
                 else -> isSystemInDarkTheme()
             }
-            val isOled = themeMode == "oled"
+            val isOled = effectiveTheme == "oled"
+
+            val isUpdateRequired = RemoteConfigManager.isUpdateRequired(BuildConfig.VERSION_CODE)
 
             XyecocMailTheme(darkTheme = darkTheme, isOled = isOled) {
                 Surface(
@@ -68,6 +72,23 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     AppNavGraph()
+
+                    if (isUpdateRequired) {
+                        val context = androidx.compose.ui.platform.LocalContext.current
+                        androidx.compose.material3.AlertDialog(
+                            onDismissRequest = {},
+                            title = { androidx.compose.material3.Text("Требуется обновление") },
+                            text = { androidx.compose.material3.Text(RemoteConfigManager.updateRequiredMessage) },
+                            confirmButton = {
+                                androidx.compose.material3.Button(onClick = {
+                                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(RemoteConfigManager.updateUrl))
+                                    context.startActivity(intent)
+                                }) {
+                                    androidx.compose.material3.Text("Обновить")
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }

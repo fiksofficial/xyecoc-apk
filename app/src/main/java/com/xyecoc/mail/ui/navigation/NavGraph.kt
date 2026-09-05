@@ -105,7 +105,8 @@ fun AppNavGraph() {
                 onComposeClick = { navController.navigate(Screen.createCompose()) },
                 onSettingsClick = { navController.navigate(Screen.Settings) },
                 onSupportClick = {
-                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://t.me/m/cvuQusUtYzZk"))
+                    val supportUrl = com.xyecoc.mail.util.RemoteConfigManager.appSupportUrl.ifBlank { "https://t.me/m/cvuQusUtYzZk" }
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(supportUrl))
                     context.startActivity(intent)
                 }
             )

@@ -41,7 +41,23 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel()
 ) {
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("Профиль", "Безопасность", "Папки и Теги", "Фильтры", "Алиасы")
+    val rc = com.xyecoc.mail.util.RemoteConfigManager
+    val tabs = remember(rc.twoFaEnabled, rc.foldersEnabled, rc.aliasesEnabled) {
+        mutableListOf<Pair<String, @Composable () -> Unit>>().apply {
+            add("Профиль" to { ProfileTab(viewModel = viewModel, onLoggedOut = onLoggedOut) })
+            if (rc.twoFaEnabled) {
+                add("Безопасность" to { SecurityTab(viewModel = viewModel) })
+            }
+            if (rc.foldersEnabled) {
+                add("Папки и Теги" to { FoldersTagsTab(viewModel = viewModel) })
+            }
+            add("Фильтры" to { FiltersTab(viewModel = viewModel) })
+            if (rc.aliasesEnabled) {
+                add("Алиасы" to { AliasesTab(viewModel = viewModel) })
+            }
+            add("О приложении" to { AboutTab() })
+        }
+    }
     val statusMsg by viewModel.statusMessage.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -72,10 +88,10 @@ fun SettingsScreen(
                 .imePadding()
         ) {
             ScrollableTabRow(
-                selectedTabIndex = selectedTab,
+                selectedTabIndex = selectedTab.coerceIn(0, tabs.lastIndex),
                 edgePadding = 16.dp
             ) {
-                tabs.forEachIndexed { index, title ->
+                tabs.forEachIndexed { index, (title, _) ->
                     Tab(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
@@ -84,13 +100,7 @@ fun SettingsScreen(
                 }
             }
 
-            when (selectedTab) {
-                0 -> ProfileTab(viewModel = viewModel, onLoggedOut = onLoggedOut)
-                1 -> SecurityTab(viewModel = viewModel)
-                2 -> FoldersTagsTab(viewModel = viewModel)
-                3 -> FiltersTab(viewModel = viewModel)
-                4 -> AliasesTab(viewModel = viewModel)
-            }
+            tabs.getOrNull(selectedTab.coerceIn(0, tabs.lastIndex))?.second?.invoke()
         }
     }
 }
@@ -184,35 +194,37 @@ fun ProfileTab(viewModel: SettingsViewModel, onLoggedOut: () -> Unit) {
             }
         }
         
-        Spacer(modifier = Modifier.height(16.dp))
-        Text("Провайдер аватарок", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(8.dp))
-        androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            val providers = listOf(
-                "gravatar" to "Gravatar",
-                "identicon" to "Identicon",
-                "monsterid" to "Monsters",
-                "robohash" to "RoboHash",
-                "robohash2" to "RoboHash (Monsters)",
-                "robohash3" to "RoboHash (Heads)",
-                "robohash4" to "RoboHash (Cats)",
-                "robohash5" to "RoboHash (Humans)",
-                "dicebear_bottts" to "Bottts",
-                "dicebear_adventurer" to "Adventurer",
-                "dicebear_fun-emoji" to "Fun Emoji",
-                "ui_avatars" to "Initials (UI Avatars)"
-            )
-            items(providers.size) { index ->
-                val (key, label) = providers[index]
-                FilterChip(
-                    selected = selectedAvatarProvider == key,
-                    onClick = {
-                        selectedAvatarProvider = key
-                        XyecocApp.instance.securePrefs.saveAvatarProvider(key)
-                        viewModel.showFeedback("Провайдер изменён: " + label)
-                    },
-                    label = { Text(label) }
+        if (com.xyecoc.mail.util.RemoteConfigManager.avatarsEnabled) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Провайдер аватарок", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val providers = listOf(
+                    "gravatar" to "Gravatar",
+                    "identicon" to "Identicon",
+                    "monsterid" to "Monsters",
+                    "robohash" to "RoboHash",
+                    "robohash2" to "RoboHash (Monsters)",
+                    "robohash3" to "RoboHash (Heads)",
+                    "robohash4" to "RoboHash (Cats)",
+                    "robohash5" to "RoboHash (Humans)",
+                    "dicebear_bottts" to "Bottts",
+                    "dicebear_adventurer" to "Adventurer",
+                    "dicebear_fun-emoji" to "Fun Emoji",
+                    "ui_avatars" to "Initials (UI Avatars)"
                 )
+                items(providers.size) { index ->
+                    val (key, label) = providers[index]
+                    FilterChip(
+                        selected = selectedAvatarProvider == key,
+                        onClick = {
+                            selectedAvatarProvider = key
+                            XyecocApp.instance.securePrefs.saveAvatarProvider(key)
+                            viewModel.showFeedback("Провайдер изменён: " + label)
+                        },
+                        label = { Text(label) }
+                    )
+                }
             }
         }
 
@@ -842,3 +854,98 @@ fun AliasesTab(viewModel: SettingsViewModel) {
         }
     }
 }
+
+@Composable
+fun AboutTab() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val rc = com.xyecoc.mail.util.RemoteConfigManager
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Xyecoc Mail", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(4.dp))
+                Text("Версия 1.0.1", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(12.dp))
+
+                Text("Автор / Команда:", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    text = rc.appAuthorName,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clickable {
+                        if (rc.appAuthorUrl.isNotBlank()) {
+                            context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(rc.appAuthorUrl)))
+                        }
+                    }
+                )
+
+                if (rc.appWebsiteUrl.isNotBlank()) {
+                    Spacer(Modifier.height(10.dp))
+                    Text("Веб-сайт:", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        text = rc.appWebsiteUrl,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.clickable {
+                            context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(rc.appWebsiteUrl)))
+                        }
+                    )
+                }
+
+                if (rc.appSupportEmail.isNotBlank()) {
+                    Spacer(Modifier.height(10.dp))
+                    Text("Email поддержки:", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(rc.appSupportEmail, fontWeight = FontWeight.SemiBold)
+                }
+
+                if (rc.appChangelogUrl.isNotBlank()) {
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        text = "История версий (Changelog)",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.clickable {
+                            context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(rc.appChangelogUrl)))
+                        }
+                    )
+                }
+
+                if (rc.appPrivacyPolicyUrl.isNotBlank()) {
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        text = "Политика конфиденциальности",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.clickable {
+                            context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(rc.appPrivacyPolicyUrl)))
+                        }
+                    )
+                }
+
+                if (rc.appTermsUrl.isNotBlank()) {
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        text = "Условия использования",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.clickable {
+                            context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(rc.appTermsUrl)))
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+

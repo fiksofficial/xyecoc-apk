@@ -170,9 +170,9 @@ class MailRepository(
                         if (page == 1 && lastMailId == 0L) {
                             db.mailDao().clearFolder(folder)
                         }
-                    } else {
                         val fetchedIds = mails.map { it.id }
-                        val minId = if (page == 1 && mails.size < 20) 0L else (fetchedIds.minOrNull() ?: 0L)
+                        val pageSize = com.xyecoc.mail.util.RemoteConfigManager.inboxPageSize
+                        val minId = if (page == 1 && mails.size < pageSize) 0L else (fetchedIds.minOrNull() ?: 0L)
                         if (page == 1 && lastMailId == 0L) {
                             db.mailDao().deleteMailsNotInList(folder, minId, fetchedIds)
                         } else {

@@ -41,11 +41,12 @@ class XyecocApp : Application(), ImageLoaderFactory {
 
 
     override fun newImageLoader(): ImageLoader {
+        val cacheSizeMb = RemoteConfigManager.avatarCacheSizeMb.coerceAtLeast(5L)
         return ImageLoader.Builder(this)
             .diskCache {
                 DiskCache.Builder()
                     .directory(cacheDir.resolve("image_cache"))
-                    .maxSizeBytes(25L * 1024 * 1024) // 25 MB
+                    .maxSizeBytes(cacheSizeMb * 1024 * 1024)
                     .build()
             }
             .build()

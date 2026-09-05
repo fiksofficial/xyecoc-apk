@@ -132,16 +132,18 @@ fun InboxScreen(
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                 )
 
-                NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.Drafts, contentDescription = null) },
-                    label = { Text("Черновики") },
-                    selected = currentFolder == "draft",
-                    onClick = {
-                        viewModel.selectFolder("draft")
-                        scope.launch { drawerState.close() }
-                    },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                )
+                if (com.xyecoc.mail.util.RemoteConfigManager.draftsEnabled) {
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Default.Drafts, contentDescription = null) },
+                        label = { Text("Черновики") },
+                        selected = currentFolder == "draft",
+                        onClick = {
+                            viewModel.selectFolder("draft")
+                            scope.launch { drawerState.close() }
+                        },
+                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                    )
+                }
 
                 NavigationDrawerItem(
                     icon = { Icon(Icons.Default.Report, contentDescription = null) },
@@ -165,7 +167,7 @@ fun InboxScreen(
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                 )
 
-                if (folders.isNotEmpty()) {
+                if (com.xyecoc.mail.util.RemoteConfigManager.foldersEnabled && folders.isNotEmpty()) {
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                     Text("Папки", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
                     folders.forEach { f ->
@@ -358,48 +360,118 @@ fun InboxScreen(
                     .padding(padding)
                     .navigationBarsPadding()
             ) {
-                if (displayedMails.isEmpty()) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState()),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Spacer(modifier = Modifier.height(64.dp))
-                        Icon(
-                            Icons.Outlined.MarkEmailRead,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            if (filterUnreadOnly) "Нет непрочитанных писем" else "В этой папке нет писем",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Button(onClick = viewModel::refresh) {
-                            Icon(Icons.Default.Refresh, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Обновить")
+                Column(modifier = Modifier.fillMaxSize()) {
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    val rc = com.xyecoc.mail.util.RemoteConfigManager
+
+                    // 1. Технические работы
+                    if (rc.maintenanceMode) {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 6.dp)
+                        ) {
+                            Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                                Spacer(Modifier.width(10.dp))
+                                Column {
+                                    Text("Технические работы", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onErrorContainer)
+                                    Text(rc.maintenanceMessage, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer)
+                                }
+                            }
                         }
-                        Spacer(modifier = Modifier.height(64.dp))
                     }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(vertical = 4.dp)
-                    ) {
-                        items(displayedMails, key = { it.id }) { mail ->
-                            MailListItem(
-                                mail = mail,
-                                onClick = { onMailClick(mail.id) },
-                                onStarClick = { viewModel.toggleImportant(mail) },
-                                onDeleteClick = { viewModel.deleteMail(mail.id) }
+
+                    // 2. MOTD (Message of the Day)
+                    if (rc.hasMOTD) {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 6.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(rc.motdTitle, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                                Spacer(Modifier.height(4.dp))
+                                Text(rc.motd, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+
+                    // 3. Промо-баннер
+                    if (rc.promoBannerEnabled && rc.promoBannerText.isNotBlank()) {
+                        val bannerColor = try {
+                            androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(rc.promoBannerColor))
+                        } catch (e: Exception) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        }
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = bannerColor),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 6.dp)
+                                .clickable {
+                                    if (rc.promoBannerUrl.isNotBlank()) {
+                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(rc.promoBannerUrl))
+                                        context.startActivity(intent)
+                                    }
+                                }
+                        ) {
+                            Text(
+                                text = rc.promoBannerText,
+                                modifier = Modifier.padding(12.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold
                             )
-                            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        }
+                    }
+
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                        if (displayedMails.isEmpty()) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState()),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Spacer(modifier = Modifier.height(64.dp))
+                                Icon(
+                                    Icons.Outlined.MarkEmailRead,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(64.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    if (filterUnreadOnly) "Нет непрочитанных писем" else "В этой папке нет писем",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Button(onClick = viewModel::refresh) {
+                                    Icon(Icons.Default.Refresh, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Обновить")
+                                }
+                                Spacer(modifier = Modifier.height(64.dp))
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(vertical = 4.dp)
+                            ) {
+                                items(displayedMails, key = { it.id }) { mail ->
+                                    MailListItem(
+                                        mail = mail,
+                                        onClick = { onMailClick(mail.id) },
+                                        onStarClick = { viewModel.toggleImportant(mail) },
+                                        onDeleteClick = { viewModel.deleteMail(mail.id) }
+                                    )
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                }
+                            }
                         }
                     }
                 }
@@ -407,33 +479,73 @@ fun InboxScreen(
         }
 
         if (showAboutDialog) {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val rc = com.xyecoc.mail.util.RemoteConfigManager
             androidx.compose.material3.AlertDialog(
                 onDismissRequest = { showAboutDialog = false },
                 title = { Text("О программе") },
                 text = {
-                    Column {
-                        val context = androidx.compose.ui.platform.LocalContext.current
-                        Text("Xyecoc App by fiksofficial.")
-                        Spacer(modifier = Modifier.height(8.dp))
+                    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                        Text("Xyecoc Mail", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Xyecoc - t.me/xyecoc",
+                            text = "Автор: ${rc.appAuthorName}",
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.clickable {
-                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://t.me/xyecoc"))
-                                context.startActivity(intent)
+                                if (rc.appAuthorUrl.isNotBlank()) {
+                                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(rc.appAuthorUrl))
+                                    context.startActivity(intent)
+                                }
                             }
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "GitHub - github.com/fiksofficial",
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.clickable {
-                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/fiksofficial"))
-                                context.startActivity(intent)
-                            }
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text("Спасибо Ксаю за Xyecoc Mail!", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                        if (rc.appWebsiteUrl.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Сайт: ${rc.appWebsiteUrl}",
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.clickable {
+                                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(rc.appWebsiteUrl))
+                                    context.startActivity(intent)
+                                }
+                            )
+                        }
+                        if (rc.appSupportEmail.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text("Поддержка: ${rc.appSupportEmail}")
+                        }
+                        if (rc.appChangelogUrl.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "История версий",
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.clickable {
+                                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(rc.appChangelogUrl))
+                                    context.startActivity(intent)
+                                }
+                            )
+                        }
+                        if (rc.appPrivacyPolicyUrl.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Политика конфиденциальности",
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.clickable {
+                                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(rc.appPrivacyPolicyUrl))
+                                    context.startActivity(intent)
+                                }
+                            )
+                        }
+                        if (rc.appTermsUrl.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Условия использования",
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.clickable {
+                                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(rc.appTermsUrl))
+                                    context.startActivity(intent)
+                                }
+                            )
+                        }
                     }
                 },
                 confirmButton = {
