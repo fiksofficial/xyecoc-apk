@@ -36,3 +36,4 @@ CMakeLists.txt.user
 .gradle/
 build/
 app/build/
+remote_config.json
