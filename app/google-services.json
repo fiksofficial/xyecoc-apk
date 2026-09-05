@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "492701786331",
+    "project_id": "fiks-xyecocmail",
+    "storage_bucket": "fiks-xyecocmail.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:492701786331:android:cd75001c74a058d0c72cfe",
+        "android_client_info": {
+          "package_name": "com.xyecoc.mail"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCL4YpJ2PC9x3Yt-8KEAY6gTzuUTcGgF6E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

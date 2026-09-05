@@ -3,6 +3,9 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
+    id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
+    id("com.google.firebase.firebase-perf")
 }
 
 android {
@@ -117,4 +120,23 @@ dependencies {
     // Pull to Refresh / Swipe
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
     implementation("androidx.work:work-runtime-ktx:2.9.1")
+
+    // Firebase BOM
+    val firebaseBom = platform("com.google.firebase:firebase-bom:33.3.0")
+    implementation(firebaseBom)
+
+    // Firebase Cloud Messaging (Push-уведомления)
+    implementation("com.google.firebase:firebase-messaging-ktx")
+
+    // Firebase Crashlytics
+    implementation("com.google.firebase:firebase-crashlytics-ktx")
+
+    // Firebase Analytics
+    implementation("com.google.firebase:firebase-analytics-ktx")
+
+    // Firebase Remote Config
+    implementation("com.google.firebase:firebase-config-ktx")
+
+    // Firebase Performance Monitoring
+    implementation("com.google.firebase:firebase-perf-ktx")
 }
