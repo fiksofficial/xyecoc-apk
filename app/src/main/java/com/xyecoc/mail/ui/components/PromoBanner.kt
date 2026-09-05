@@ -131,6 +131,29 @@ fun PromoBanner(
                             }
                     }
 
+                    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+
+                    DisposableEffect(lifecycleOwner, exoPlayer) {
+                        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                            when (event) {
+                                androidx.lifecycle.Lifecycle.Event.ON_PAUSE,
+                                androidx.lifecycle.Lifecycle.Event.ON_STOP -> {
+                                    exoPlayer.pause()
+                                    exoPlayer.volume = 0f
+                                }
+                                androidx.lifecycle.Lifecycle.Event.ON_RESUME -> {
+                                    exoPlayer.volume = if (isMuted) 0f else 1f
+                                    exoPlayer.play()
+                                }
+                                else -> {}
+                            }
+                        }
+                        lifecycleOwner.lifecycle.addObserver(observer)
+                        onDispose {
+                            lifecycleOwner.lifecycle.removeObserver(observer)
+                        }
+                    }
+
                     DisposableEffect(exoPlayer) {
                         onDispose {
                             exoPlayer.release()

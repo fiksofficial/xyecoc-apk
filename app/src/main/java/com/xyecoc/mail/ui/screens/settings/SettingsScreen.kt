@@ -875,7 +875,7 @@ fun AboutTab() {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("Xyecoc Mail", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(4.dp))
-                Text("Версия 1.0.1", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Версия ${com.xyecoc.mail.BuildConfig.VERSION_NAME} (Build ${com.xyecoc.mail.BuildConfig.VERSION_CODE})", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(12.dp))
                 HorizontalDivider()
                 Spacer(Modifier.height(12.dp))
