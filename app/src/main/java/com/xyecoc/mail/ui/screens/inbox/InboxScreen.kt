@@ -354,16 +354,20 @@ fun InboxScreen(
         ) { padding ->
             androidx.compose.material3.pulltorefresh.PullToRefreshBox(
                 isRefreshing = isRefreshing,
-                onRefresh = viewModel::refresh,
+                onRefresh = {
+                    viewModel.refresh()
+                    com.xyecoc.mail.util.RemoteConfigManager.refresh()
+                },
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
                     .navigationBarsPadding()
             ) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    val context = androidx.compose.ui.platform.LocalContext.current
-                    val rc = com.xyecoc.mail.util.RemoteConfigManager
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val rc = com.xyecoc.mail.util.RemoteConfigManager
+                val configTick by rc.configUpdates.collectAsState()
 
+                Column(modifier = Modifier.fillMaxSize()) {
                     // 1. Технические работы
                     if (rc.maintenanceMode) {
                         Card(

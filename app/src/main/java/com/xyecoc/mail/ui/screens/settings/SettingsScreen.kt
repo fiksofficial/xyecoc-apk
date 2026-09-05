@@ -43,7 +43,8 @@ fun SettingsScreen(
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     val rc = com.xyecoc.mail.util.RemoteConfigManager
-    val tabs = remember(rc.twoFaEnabled, rc.foldersEnabled, rc.aliasesEnabled) {
+    val configTick by rc.configUpdates.collectAsState()
+    val tabs = remember(rc.twoFaEnabled, rc.foldersEnabled, rc.aliasesEnabled, configTick) {
         mutableListOf<Pair<String, @Composable () -> Unit>>().apply {
             add("Профиль" to { ProfileTab(viewModel = viewModel, onLoggedOut = onLoggedOut) })
             if (rc.twoFaEnabled) {

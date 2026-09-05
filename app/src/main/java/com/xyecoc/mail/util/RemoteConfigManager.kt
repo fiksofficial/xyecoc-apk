@@ -1,13 +1,23 @@
 package com.xyecoc.mail.util
 
+import android.util.Log
+import com.google.firebase.remoteconfig.ConfigUpdate
+import com.google.firebase.remoteconfig.ConfigUpdateListener
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
+import com.google.firebase.remoteconfig.FirebaseRemoteConfigException
 import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Менеджер Remote Config — все параметры управляются из Firebase Console
  * без обновления APK.
  */
 object RemoteConfigManager {
+
+    private val _configUpdates = MutableStateFlow(0L)
+    val configUpdates: StateFlow<Long> = _configUpdates.asStateFlow()
 
     private val config: FirebaseRemoteConfig by lazy {
         FirebaseRemoteConfig.getInstance()
@@ -79,13 +89,56 @@ object RemoteConfigManager {
     )
 
     fun initialize() {
-        config.setDefaultsAsync(defaults.mapValues { it.value as Any })
+        try {
+            config.setDefaultsAsync(defaults.mapValues { it.value as Any })
 
-        val settings = FirebaseRemoteConfigSettings.Builder()
-            .setMinimumFetchIntervalInSeconds(3600) // 1 час
-            .build()
-        config.setConfigSettingsAsync(settings)
-        config.fetchAndActivate()
+            val settings = FirebaseRemoteConfigSettings.Builder()
+                .setMinimumFetchIntervalInSeconds(0) // 0 секунд — мгновенное получение без 1-часового кэширования
+                .build()
+            config.setConfigSettingsAsync(settings)
+
+            // Реальное время: подписка на изменения в Firebase Console
+            config.addOnConfigUpdateListener(object : ConfigUpdateListener {
+                override fun onUpdate(configUpdate: ConfigUpdate) {
+                    Log.d("RemoteConfig", "Realtime update received for keys: ${configUpdate.updatedKeys}")
+                    config.activate().addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            Log.d("RemoteConfig", "Realtime update activated")
+                            _configUpdates.value = System.currentTimeMillis()
+                        }
+                    }
+                }
+
+                override fun onError(error: FirebaseRemoteConfigException) {
+                    Log.e("RemoteConfig", "Realtime config error: ${error.message}", error)
+                }
+            })
+
+            // Немедленная загрузка при запуске приложения
+            config.fetchAndActivate().addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    Log.d("RemoteConfig", "Fetch & activate success, updated=${task.result}")
+                    _configUpdates.value = System.currentTimeMillis()
+                } else {
+                    Log.e("RemoteConfig", "Fetch & activate failed: ${task.exception?.message}", task.exception)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("RemoteConfig", "Initialize failed: ${e.message}", e)
+        }
+    }
+
+    fun refresh(onComplete: ((Boolean) -> Unit)? = null) {
+        config.fetchAndActivate().addOnCompleteListener { task ->
+            val success = task.isSuccessful
+            if (success) {
+                _configUpdates.value = System.currentTimeMillis()
+                Log.d("RemoteConfig", "Manual refresh success: updated=${task.result}")
+            } else {
+                Log.e("RemoteConfig", "Manual refresh failed: ${task.exception?.message}", task.exception)
+            }
+            onComplete?.invoke(success)
+        }
     }
 
     // ─── Геттеры ──────────────────────────────────────────────────────────────

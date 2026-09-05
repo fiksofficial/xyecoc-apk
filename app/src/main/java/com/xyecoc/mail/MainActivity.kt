@@ -54,6 +54,7 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
+            val configTick by RemoteConfigManager.configUpdates.collectAsState()
             val themeMode by XyecocApp.instance.securePrefs.themeModeFlow.collectAsState(initial = "system")
             val forceTheme = RemoteConfigManager.forceTheme
             val effectiveTheme = if (forceTheme.isNotBlank()) forceTheme else themeMode
