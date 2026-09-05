@@ -3,8 +3,7 @@ package com.xyecoc.mail
 import android.app.Application
 import com.google.firebase.FirebaseApp
 import com.google.firebase.crashlytics.FirebaseCrashlytics
-import com.google.firebase.remoteconfig.FirebaseRemoteConfig
-import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings
+import com.xyecoc.mail.util.RemoteConfigManager
 import com.xyecoc.mail.data.local.AppDatabase
 import com.xyecoc.mail.util.NetworkMonitor
 import com.xyecoc.mail.util.SecurePrefs
@@ -36,13 +35,8 @@ class XyecocApp : Application(), ImageLoaderFactory {
         // Crashlytics: включить сбор крашей
         FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(true)
 
-        // Remote Config: интервал обновления — 1 час (в debug — 0 сек)
-        val remoteConfig = FirebaseRemoteConfig.getInstance()
-        val configSettings = FirebaseRemoteConfigSettings.Builder()
-            .setMinimumFetchIntervalInSeconds(3600)
-            .build()
-        remoteConfig.setConfigSettingsAsync(configSettings)
-        remoteConfig.fetchAndActivate()
+        // Remote Config через единый менеджер
+        RemoteConfigManager.initialize()
     }
 
 

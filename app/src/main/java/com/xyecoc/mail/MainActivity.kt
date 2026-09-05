@@ -23,6 +23,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
 import com.xyecoc.mail.worker.MailSyncWorker
+import com.xyecoc.mail.util.RemoteConfigManager
 
 class MainActivity : ComponentActivity() {
     private val requestPermissionLauncher = registerForActivityResult(
@@ -47,6 +48,10 @@ class MainActivity : ComponentActivity() {
             startService(serviceIntent)
         }
 
+        // Запуск фонового опроса почты (уведомления без сервера)
+        // Интервал берётся из Remote Config (по умолчанию 5 минут)
+        scheduleMailPolling()
+
         enableEdgeToEdge()
         setContent {
             val themeMode by XyecocApp.instance.securePrefs.themeModeFlow.collectAsState(initial = "system")
@@ -66,5 +71,28 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun scheduleMailPolling() {
+        if (!RemoteConfigManager.pushPollEnabled) return
+
+        val intervalMinutes = RemoteConfigManager.pollIntervalMinutes
+            .coerceAtLeast(15) // WorkManager минимум 15 минут
+
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val request = PeriodicWorkRequestBuilder<MailSyncWorker>(
+            intervalMinutes, TimeUnit.MINUTES
+        )
+            .setConstraints(constraints)
+            .build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "mail_poll",
+            ExistingPeriodicWorkPolicy.UPDATE, // обновляет интервал если Remote Config поменялся
+            request
+        )
     }
 }
